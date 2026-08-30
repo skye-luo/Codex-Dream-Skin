@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "id": "mentor-duan-invest",
+  "name": "段永平 · 长期投资局",
+  "brandSubtitle": "LONG-TERM JUDGMENT · DUAN YONGPING",
+  "tagline": "先判断什么是对的，再用平常心把正确的事做久。",
+  "projectPrefix": "进入判断 · ",
+  "projectLabel": "◉  选择投资与决策任务",
+  "statusText": "LONG-TERM MODE",
+  "quote": "做对的事情，把事情做对。",
+  "image": "background.png",
+  "appearance": "dark",
+  "art": {
+    "safeArea": "left",
+    "taskMode": "ambient",
+    "focusX": 0.78,
+    "focusY": 0.48
+  },
+  "colors": {
+    "background": "#0b100d",
+    "panel": "#111914",
+    "panelAlt": "#172019",
+    "accent": "#728e68",
+    "accentAlt": "#728e68",
+    "secondary": "#728e68",
+    "highlight": "#728e68",
+    "text": "#eff3ee",
+    "muted": "#9ba99a",
+    "line": "rgba(114, 142, 104, .25)"
+  }
+}

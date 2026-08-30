@@ -183,13 +183,623 @@ html.codex-dream-skin body {
   background: var(--ds-bg) !important;
   color: var(--ds-text) !important;
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Microsoft YaHei UI", "Segoe UI", system-ui, sans-serif !important;
+  /* Background transitions can remain frozen at time 0 while Electron is
+     backgrounded, leaving native light paint under dark theme text. The
+     dedicated theme veil below owns the visual handoff instead. */
+  transition: none !important;
+}
+
+/* Settings and other native system pages deliberately opt out of the mentor
+   skin. Keep Codex's own light surfaces, but lift its faint utility labels to
+   an AA-readable neutral instead of reintroducing theme colors. */
+html[data-dream-surface="native"].electron-light .text-tertiary,
+html[data-dream-surface="native"].electron-light div.app-shell-left-panel [role="link"] {
+  color: #5f6368 !important;
+  -webkit-text-fill-color: #5f6368 !important;
+  opacity: 1 !important;
 }
 
 html.codex-dream-skin body::before {
   content: none;
 }
 
+/* Theme changes are frequent when each conversation owns a mentor. A short,
+   non-interactive veil hides the discrete wallpaper swap while the native UI
+   and color variables settle. It is deliberately much shorter than a toast. */
+html.codex-dream-skin[data-dream-theme-transition="true"] body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 2147483646;
+  pointer-events: none;
+  background: rgb(var(--ds-bg-rgb) / .48);
+  animation: dream-skin-theme-reveal .28s cubic-bezier(.22, 1, .36, 1) both;
+}
+
+@keyframes dream-skin-theme-reveal {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+/* The unified ChatGPT app may retain light-shell token values while this skin
+   paints a dark immersive surface. Approval cards, menus, and other portals
+   are mounted outside main, so neutral compatibility must be rooted at the
+   themed document rather than the conversation container. Auxiliary windows
+   never receive codex-dream-skin and remain unaffected. */
+html.codex-dream-skin :is(
+  [class*="text-token-foreground"],
+  [class*="text-token-text-primary"],
+  [class*="text-token-conversation-body"],
+  [class*="text-token-conversation-header"],
+  [class*="text-token-non-assistant-body-descendant"],
+  [class*="text-token-input-foreground"],
+  [class*="text-token-application-menu-foreground"],
+  [class*="text-token-terminal-foreground"]
+) {
+  color: var(--ds-text) !important;
+}
+
+html.codex-dream-skin [class*="--thread-resource-card-row-padding-x"] .text-codex-git-added {
+  color: #4ade80 !important;
+  -webkit-text-fill-color: #4ade80 !important;
+}
+
+html.codex-dream-skin [class*="--thread-resource-card-row-padding-x"] .text-codex-git-deleted {
+  color: #ff7b72 !important;
+  -webkit-text-fill-color: #ff7b72 !important;
+}
+
+/* Codex 26.803 moved assistant prose from token utilities to a generated
+   Markdown component that carries native light-shell ink on every text block.
+   Use the stable message-style marker and only repaint prose containers; links,
+   mentions, inline code, and semantic diff colors keep their native meaning. */
+html.codex-dream-skin [data-markdown-text-style="assistant-message"] {
+  color: var(--ds-text) !important;
+  -webkit-text-fill-color: var(--ds-text) !important;
+}
+
+html.codex-dream-skin [data-markdown-text-style="assistant-message"] :is(
+  p, li, ul, ol, h1, h2, h3, h4, h5, h6,
+  blockquote, strong, em, del, th, td, figcaption
+) {
+  color: var(--ds-text) !important;
+  -webkit-text-fill-color: var(--ds-text) !important;
+}
+
+/* User messages use a different stable root from assistant Markdown. */
+html.codex-dream-skin [data-user-message-bubble="true"] {
+  color: var(--ds-text) !important;
+}
+
+html.codex-dream-skin [data-user-message-bubble="true"] :is(
+  p, li, ul, ol, h1, h2, h3, h4, h5, h6,
+  blockquote, strong, em, del, th, td, figcaption
+) {
+  color: var(--ds-text) !important;
+  -webkit-text-fill-color: var(--ds-text) !important;
+}
+
+/* Message editing uses a separate outline button for Cancel. Scope the dark
+   surface correction to that form's first action so Send remains native. */
+html.codex-dream-skin main:is(.main-surface, [data-app-shell-main-surface="default"])
+  form[class*="rounded-3xl"][class*="bg-text/5"]:has([contenteditable="true"])
+  > .relative.z-10 > [class*="justify-end"] > button:first-child {
+  background: rgb(var(--ds-panel-2-rgb) / .98) !important;
+  border-color: var(--ds-line) !important;
+  color: var(--ds-text) !important;
+  -webkit-text-fill-color: var(--ds-text) !important;
+}
+
+html.codex-dream-skin :is(
+  [class*="text-token-foreground-secondary"],
+  [class*="text-token-description-foreground"],
+  [class*="text-token-muted-foreground"],
+  [class*="text-token-text-secondary"],
+  [class*="text-token-text-tertiary"],
+  [class*="text-token-disabled-foreground"],
+  [class*="text-token-conversation-summary"],
+  [class*="text-token-input-placeholder-foreground"]
+) {
+  color: rgb(var(--ds-text-rgb) / .80) !important;
+  opacity: 1 !important;
+}
+
+html.codex-dream-skin [class*="text-token-foreground/"] {
+  color: rgb(var(--ds-text-rgb) / .78) !important;
+  opacity: 1 !important;
+}
+
+/* Radix menus can contain an important Tailwind foreground utility. In the
+   native light shell that utility wins with dark ink even after the menu
+   surface has been rebound to the skin's dark dropdown color. Pair the final
+   painted glyph color at the portal boundary so nested quota and account rows
+   cannot become dark-on-dark. */
+html.codex-dream-skin [data-radix-menu-content]
+  [role="menuitem"][class*="!text-token-foreground"] {
+  color: var(--ds-text) !important;
+  -webkit-text-fill-color: var(--ds-text) !important;
+  opacity: 1 !important;
+}
+
+/* Tooltips are transient portals too. Some attention states paint a bright
+   native blue tooltip that falls below AA with white text, while ordinary
+   tooltips already use a dark token. Give every tooltip one paired surface so
+   hover state cannot silently change the contrast contract. */
+html.codex-dream-skin [role="tooltip"] {
+  background: rgb(var(--ds-panel-2-rgb) / .98) !important;
+  border-color: var(--ds-line) !important;
+  color: var(--ds-text) !important;
+  -webkit-text-fill-color: var(--ds-text) !important;
+}
+
+/* The sidebar activity callout is an intentional blue tooltip with important
+   utility classes. Preserve that cue using a deeper AA-safe blue and override
+   both the bubble and its rotated arrow at a higher portal specificity. */
+html.codex-dream-skin body
+  [role="tooltip"][class*="!bg-token-text-link-foreground"] {
+  --color-token-text-link-foreground: #075a9e;
+  background: #075a9e !important;
+  border-color: #075a9e !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+}
+
+html.codex-dream-skin body
+  [role="tooltip"][class*="!bg-token-text-link-foreground"]::before {
+  background-color: #075a9e !important;
+}
+
+html.codex-dream-skin body
+  [role="tooltip"][class*="!bg-token-text-link-foreground"] * {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+}
+
+/* The full-access menu uses semantic orange intended for a lighter native
+   surface. Preserve the warning meaning with an AA-safe orange on dark mentor
+   menus, and a deeper counterpart when the user selects the light shell. */
+html.codex-dream-skin [data-radix-menu-content]
+  [class*="text-token-editor-warning-foreground"] {
+  color: #f59a63 !important;
+  -webkit-text-fill-color: #f59a63 !important;
+}
+
+html.codex-dream-skin[data-dream-shell="light"] [data-radix-menu-content]
+  [class*="text-token-editor-warning-foreground"] {
+  color: #873507 !important;
+  -webkit-text-fill-color: #873507 !important;
+}
+
+/* Codex 26.810 replaced the old application-menu tokens with a native light
+   elevated surface and semantic text utilities. Keep that native surface,
+   but give its secondary and warning text opaque AA-safe colors. Scoping this
+   to the new menu surface avoids repainting dark legacy menus or page copy. */
+html.codex-dream-skin [data-radix-menu-content][class*="bg-surface-elevated-secondary"] {
+  --color-codex-description: #5f6368;
+  --color-text-secondary: #5f6368;
+  --color-text-tertiary: #5f6368;
+}
+
+html.codex-dream-skin [data-radix-menu-content][class*="bg-surface-elevated-secondary"]
+  [class*="text-codex-description"] {
+  color: #5f6368 !important;
+  -webkit-text-fill-color: #5f6368 !important;
+  opacity: 1 !important;
+}
+
+html.codex-dream-skin [data-radix-menu-content][class*="bg-surface-elevated-secondary"]
+  .text-warning {
+  color: #a33600 !important;
+  -webkit-text-fill-color: #a33600 !important;
+  opacity: 1 !important;
+}
+
+/* The browser/review split pane is intentionally native light and lives
+   outside the themed conversation surface. In 26.810 its diff header inherits
+   dark-theme semantic colors from the outer document, so counters and the
+   abbreviated path lose contrast. Re-pair only the stable right-panel host;
+   web content inside the <webview> remains untouched. */
+html.codex-dream-skin [data-browser-sidebar-webview-host-root]
+  [class*="@container/diff-header"] span {
+  color: #3f4348 !important;
+  -webkit-text-fill-color: #3f4348 !important;
+  opacity: 1 !important;
+}
+
+html.codex-dream-skin [data-browser-sidebar-webview-host-root]
+  [class*="@container/diff-header"] .text-codex-git-added {
+  color: #087a2f !important;
+  -webkit-text-fill-color: #087a2f !important;
+}
+
+html.codex-dream-skin [data-browser-sidebar-webview-host-root]
+  [class*="@container/diff-header"] .text-codex-git-deleted {
+  color: #b42318 !important;
+  -webkit-text-fill-color: #b42318 !important;
+}
+
+/* Important Tailwind text utilities can keep their light-shell glyph fill even
+   when the computed color is corrected. Limit the fill override to the exact
+   placeholder utility instead of inheriting it through containers; semantic
+   green/red diff descendants must retain their own colors. */
+html.codex-dream-skin [class*="!text-token-input-placeholder-foreground"] {
+  color: rgb(var(--ds-text-rgb) / .78) !important;
+  -webkit-text-fill-color: rgb(var(--ds-text-rgb) / .78) !important;
+}
+
+/* Activity headers apply a generated descendant utility that paints their
+   inner, otherwise-unclassed spans with the light-shell ink color. Override
+   the final painted glyph color, not only the token on the parent. */
+html.codex-dream-skin main:is(.main-surface, [data-app-shell-main-surface="default"])
+  [class*="group/activity-header"] span:not(.loading-shimmer-pure-text):not([class*="cadencedShimmer"]) {
+  color: rgb(var(--ds-text-rgb) / .76) !important;
+  -webkit-text-fill-color: rgb(var(--ds-text-rgb) / .76) !important;
+  opacity: 1 !important;
+}
+
+/* Message timestamps moved to the new semantic tertiary utility in 26.810.
+   Keep the correction inside the conversation timeline so native-light review
+   panes and menus can retain their own darker tertiary palette. */
+html.codex-dream-skin [data-thread-find-target="conversation"] .text-tertiary {
+  color: rgb(var(--ds-text-rgb) / .76) !important;
+  -webkit-text-fill-color: rgb(var(--ds-text-rgb) / .76) !important;
+  opacity: 1 !important;
+}
+
+html.codex-dream-skin [data-thread-find-target="conversation"] .text-secondary {
+  color: rgb(var(--ds-text-rgb) / .76) !important;
+  -webkit-text-fill-color: rgb(var(--ds-text-rgb) / .76) !important;
+  opacity: 1 !important;
+}
+
+html.codex-dream-skin [data-thread-find-target="conversation"] :is(.hljs-keyword, .hljs-selector-tag) {
+  color: #d2a8ff !important;
+  -webkit-text-fill-color: #d2a8ff !important;
+}
+
+html.codex-dream-skin [data-thread-find-target="conversation"]
+  :is(.hljs-attr, .hljs-attribute, .hljs-number) {
+  color: #e3b341 !important;
+  -webkit-text-fill-color: #e3b341 !important;
+}
+
+/* Attachment rows above the composer deliberately keep a native translucent
+   light surface. Their action buttons therefore need native dark ink instead
+   of the mentor timeline's light tertiary color. */
+html.codex-dream-skin [data-codex-composer-root]
+  [class*="bg-background-primary-soft/70"] button {
+  color: #3f4348 !important;
+  -webkit-text-fill-color: #3f4348 !important;
+  opacity: 1 !important;
+}
+
+/* The unified app can retain light neutral surface tokens even after the skin
+   has switched foreground tokens to a dark-shell palette. Rebind the neutral
+   surface family as a pair so progress pills, review buttons, resource cards,
+   dropdowns, generated-image shells, and editor summaries cannot become
+   translucent white with white text. Semantic success/danger colors are not
+   included here and remain native. */
+html.codex-dream-skin :is(
+  [class*="--thread-resource-card-row-padding-x"],
+  [class*="bg-token-application-menu-background"],
+  [class*="bg-token-bg-primary"],
+  [class*="bg-token-input-background"],
+  [class*="bg-token-dropdown-background"],
+  [class*="bg-token-bg-secondary"],
+  [class*="bg-token-bg-tertiary"],
+  [class*="bg-token-bg-fog"],
+  [class*="bg-token-editor-background"],
+  [class*="bg-token-main-surface-primary"],
+  [class*="bg-token-menu-background"],
+  [class*="bg-token-terminal-background"],
+  [class*="bg-token-text-code-block-background"]
+) {
+  background-color: rgb(var(--ds-panel-2-rgb) / .94) !important;
+  border-color: var(--ds-line) !important;
+  color: var(--ds-text) !important;
+}
+
+/* File-edit approvals can move to a document-level surface in short windows.
+   Target the stable product marker directly so its shorthand background can
+   never restore the light shell underneath themed foreground tokens. */
+html.codex-dream-skin [data-codex-approval-surface] {
+  background: rgb(var(--ds-panel-2-rgb) / .98) !important;
+  border: 1px solid var(--ds-line) !important;
+  color: var(--ds-text) !important;
+  box-shadow: 0 18px 50px rgb(var(--ds-bg-rgb) / .38) !important;
+  --color-text: var(--ds-text);
+  --color-text-secondary: rgb(var(--ds-text-rgb) / .84);
+  --color-text-tertiary: rgb(var(--ds-text-rgb) / .78);
+  --color-codex-description: rgb(var(--ds-text-rgb) / .78);
+  --color-text-primary-solid: var(--ds-on-accent);
+  --color-text-on-accent: var(--ds-on-accent);
+  --color-surface: rgb(var(--ds-panel-2-rgb) / .98);
+  --color-surface-secondary: rgb(var(--ds-panel-rgb) / .98);
+  --color-surface-tertiary: color-mix(in srgb,
+    rgb(var(--ds-panel-2-rgb)) 92%,
+    rgb(var(--ds-muted-rgb)) 8%);
+  --color-surface-elevated: rgb(var(--ds-panel-2-rgb) / .98);
+  --color-surface-elevated-secondary: rgb(var(--ds-panel-2-rgb) / .98);
+  --color-background-primary-soft: rgb(var(--ds-panel-rgb) / .96);
+  --color-background-primary-soft-alpha: rgb(var(--ds-accent-rgb) / .10);
+  --color-background-primary-soft-active: rgb(var(--ds-accent-rgb) / .18);
+  --color-background-primary-ghost-hover: rgb(var(--ds-accent-rgb) / .14);
+  --color-background-primary-solid: color-mix(in srgb,
+    var(--ds-accent) 58%,
+    var(--ds-text) 42%);
+  --color-background-control: rgb(var(--ds-panel-2-rgb) / .98);
+  --color-background-control-opaque: rgb(var(--ds-panel-2-rgb));
+  --color-background-button-primary: var(--color-background-primary-solid);
+  --color-background-button-secondary: rgb(var(--ds-panel-2-rgb) / .98);
+  --color-background-button-tertiary: transparent;
+  --color-text-button-primary: var(--ds-on-accent);
+  --color-text-button-secondary: var(--ds-text);
+  --color-text-button-tertiary: rgb(var(--ds-text-rgb) / .78);
+  --color-border: var(--ds-line);
+  --color-border-subtle: rgb(var(--ds-muted-rgb) / .16);
+  --color-border-strong: rgb(var(--ds-muted-rgb) / .30);
+  --color-border-primary-outline: rgb(var(--ds-muted-rgb) / .30);
+}
+
+/* Scheduled-task settings use an inline fallback to the native light panel
+   variable instead of a background utility class. Pair those cards with the
+   themed foreground rather than leaving their form text white on white. */
+html.codex-dream-skin main:is(.main-surface, [data-app-shell-main-surface="default"]) aside
+  [style*="background-color: var(--color-background-panel"] {
+  background-color: rgb(var(--ds-panel-2-rgb) / .98) !important;
+  border-color: var(--ds-line) !important;
+  color: var(--ds-text) !important;
+}
+
+html.codex-dream-skin
+  [class*="hover:bg-token-list-hover-background"]:hover {
+  background-color: rgb(var(--ds-accent-rgb) / .12) !important;
+}
+
+/* File tabs, Markdown previews, source diffs, and the file tree are one native
+   light workspace mounted inside the themed conversation. Their editor and
+   shadow-DOM widgets intentionally keep light-shell syntax colors. Anchor the
+   boundary to the file tree, which is specific to that editor; a generic
+   tabpanel also exists behind XLSX and scheduled-task viewers and must not turn
+   those right-panel shells white. */
+html.codex-dream-skin main:is(.main-surface, [data-app-shell-main-surface="default"])
+  aside:has(file-tree-container) {
+  color-scheme: light !important;
+  --app-shell-tab-background: #e8eaed;
+  background: var(--color-token-main-surface-primary) !important;
+  color: var(--color-token-foreground) !important;
+  -webkit-text-fill-color: currentColor;
+}
+
+html.codex-dream-skin main:is(.main-surface, [data-app-shell-main-surface="default"])
+  aside:has(file-tree-container) :is(
+    [role="tabpanel"],
+    [class*="bg-token-main-surface-primary"],
+    .cm-editor,
+    .cm-scroller,
+    diffs-container,
+    file-tree-container
+  ) {
+  background-color: var(--color-token-main-surface-primary) !important;
+  border-color: var(--color-token-border-default) !important;
+  color: var(--color-token-foreground) !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+
+html.codex-dream-skin main:is(.main-surface, [data-app-shell-main-surface="default"])
+  aside:has(file-tree-container) [class*="bg-token-bg-fog"] {
+  background-color: var(--color-token-bg-fog) !important;
+  border-color: var(--color-token-border-default) !important;
+}
+
+html.codex-dream-skin main:is(.main-surface, [data-app-shell-main-surface="default"])
+  aside:has(file-tree-container) :is(
+    [class*="text-token-foreground"],
+    [class*="text-token-text-primary"],
+    [class*="text-token-input-foreground"],
+    [class*="text-token-button-tertiary-foreground"]
+  ) {
+  color: var(--color-token-foreground) !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+
+html.codex-dream-skin main:is(.main-surface, [data-app-shell-main-surface="default"])
+  aside:has(file-tree-container) :is(
+    [class*="text-token-text-secondary"],
+    [class*="text-token-description-foreground"],
+    [class*="text-token-muted-foreground"],
+    [class*="text-token-text-tertiary"],
+    [class*="text-token-disabled-foreground"],
+    [class*="text-token-input-placeholder-foreground"]
+  ) {
+  color: var(--color-token-text-secondary) !important;
+  -webkit-text-fill-color: currentColor !important;
+  opacity: 1 !important;
+}
+
+html.codex-dream-skin main:is(.main-surface, [data-app-shell-main-surface="default"])
+  aside:has(file-tree-container) :is(input, textarea)::placeholder {
+  color: var(--color-token-text-secondary) !important;
+  -webkit-text-fill-color: currentColor !important;
+  opacity: 1 !important;
+}
+
+html.codex-dream-skin main:is(.main-surface, [data-app-shell-main-surface="default"])
+  aside:has(file-tree-container) :is(nav[aria-label="文件路径"], .cm-editor) {
+  color: var(--color-token-editor-foreground) !important;
+  text-shadow: none !important;
+}
+
+html.codex-dream-skin main:is(.main-surface, [data-app-shell-main-surface="default"])
+  aside:has(file-tree-container) .group\/tab
+  > [class*="bg-[var(--app-shell-tab-background)]"] {
+  background-color: var(--app-shell-tab-background) !important;
+}
+
+/* Artifact tabs are mounted in the right panel even when the active viewer is
+   a spreadsheet rather than the Markdown/source tabpanel above. Codex keeps
+   their selected pill on its native light app-shell background, so restore
+   the matching native dark ink for both the filename and close affordance. */
+html.codex-dream-skin main:is(.main-surface, [data-app-shell-main-surface="default"]) aside
+  [data-tab-id]:has(> [role="tab"][aria-selected="true"])
+  > [role="tab"][aria-selected="true"],
+html.codex-dream-skin main:is(.main-surface, [data-app-shell-main-surface="default"]) aside
+  [data-tab-id]:has(> [role="tab"][aria-selected="true"])
+  > [data-app-shell-tab-close-button="true"] {
+  color: var(--color-token-foreground) !important;
+  -webkit-text-fill-color: currentColor !important;
+  opacity: 1 !important;
+}
+
+html.codex-dream-skin main:is(.main-surface, [data-app-shell-main-surface="default"])
+  aside:has(file-tree-container) ::selection {
+  background: #99c5f6 !important;
+  color: #101820 !important;
+  -webkit-text-fill-color: #101820 !important;
+}
+
+/* Running activity labels use two animated, overlapping text layers. Native
+   light-shell shimmer colors briefly make the base layer nearly black. Keep
+   both phases readable while preserving the subtle motion cue. */
+html.codex-dream-skin main:is(.main-surface, [data-app-shell-main-surface="default"]) :is(
+  .loading-shimmer-pure-text,
+  [class*="cadencedShimmerSweep"]
+) {
+  color: rgb(var(--ds-text-rgb) / .58) !important;
+  -webkit-text-fill-color: rgb(var(--ds-text-rgb) / .58) !important;
+}
+
+html.codex-dream-skin main:is(.main-surface, [data-app-shell-main-surface="default"]) [class*="cadencedShimmerHighlight"] {
+  color: rgb(var(--ds-text-rgb) / .88) !important;
+  -webkit-text-fill-color: rgb(var(--ds-text-rgb) / .88) !important;
+}
+
+html.codex-dream-skin main:is(.main-surface, [data-app-shell-main-surface="default"])
+  [class*="--thread-resource-card-row-padding-x"] [class*="bg-token-bg-secondary"] {
+  background-color: rgb(var(--ds-panel-rgb) / .96) !important;
+  color: rgb(var(--ds-text-rgb) / .84) !important;
+}
+
+/* Codex 26.810 renamed the completed-diff icon tile utility while leaving its
+   native light surface intact. Repaint only that tile inside the diff header. */
+html.codex-dream-skin main:is(.main-surface, [data-app-shell-main-surface="default"])
+  [class*="group/turn-diff-header"] [class*="bg-surface-secondary"] {
+  background-color: rgb(var(--ds-panel-rgb) / .96) !important;
+  color: rgb(var(--ds-text-rgb) / .78) !important;
+}
+
+/* Codex 26.810 resource/diff cards moved to semantic surface/text tokens.
+   Rebind them at the card boundary so light editors remain untouched. */
+html.codex-dream-skin main:is(.main-surface, [data-app-shell-main-surface="default"])
+  [class*="--thread-resource-card-row-padding-x"] {
+  --color-text: var(--ds-text);
+  --color-text-secondary: rgb(var(--ds-text-rgb) / .82);
+  --color-text-tertiary: rgb(var(--ds-text-rgb) / .72);
+  --color-codex-description: rgb(var(--ds-text-rgb) / .72);
+  --color-surface: rgb(var(--ds-panel-2-rgb) / .98);
+  --color-surface-elevated-secondary: rgb(var(--ds-panel-2-rgb) / .98);
+  color: var(--ds-text) !important;
+}
+
+html.codex-dream-skin main:is(.main-surface, [data-app-shell-main-surface="default"])
+  [class*="--thread-resource-card-row-padding-x"] :is(.text-default, button) {
+  color: var(--ds-text) !important;
+  -webkit-text-fill-color: var(--ds-text) !important;
+}
+
+html.codex-dream-skin main:is(.main-surface, [data-app-shell-main-surface="default"])
+  [class*="--thread-resource-card-row-padding-x"] .text-codex-description {
+  color: rgb(var(--ds-text-rgb) / .76) !important;
+  -webkit-text-fill-color: rgb(var(--ds-text-rgb) / .76) !important;
+}
+
+html.codex-dream-skin main:is(.main-surface, [data-app-shell-main-surface="default"])
+  [class*="--thread-resource-card-row-padding-x"] button.no-drag {
+  background: rgb(var(--ds-panel-2-rgb) / .98) !important;
+  border-color: var(--ds-line) !important;
+}
+
+html.codex-dream-skin main:is(.main-surface, [data-app-shell-main-surface="default"])
+  > header.app-header-tint :is(button, span) {
+  color: var(--ds-text) !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+
+html.codex-dream-skin [class*="text-text/"] {
+  color: rgb(var(--ds-text-rgb) / .76) !important;
+  -webkit-text-fill-color: rgb(var(--ds-text-rgb) / .76) !important;
+}
+
+/* 26.810 titlebar controls expose a stable context-menu surface. Keep the
+   transparent task title light, but retain dark ink on native light action
+   buttons such as Open location and Review. */
+html.codex-dream-skin header[data-pip-obstacle="app-shell-header"]
+  [data-testid="app-shell-header-context-menu-surface"] :is(.text-default, button.text-default) {
+  color: var(--ds-text) !important;
+  -webkit-text-fill-color: var(--ds-text) !important;
+}
+
+html.codex-dream-skin header[data-pip-obstacle="app-shell-header"]
+  [data-testid="app-shell-header-context-menu-surface"]
+  button[class*="bg-primary-soft-alpha"] {
+  color: #1a1c1f !important;
+  -webkit-text-fill-color: #1a1c1f !important;
+}
+
+html.codex-dream-skin header[data-pip-obstacle="app-shell-header"]
+  [data-testid="app-shell-header-context-menu-surface"]
+  button[class*="bg-primary-soft-alpha"] * {
+  color: currentColor !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+
+/* The in-progress change summary lives in a stable portal immediately above
+   the composer. Its new light translucent pill must not mix with dark-theme
+   semantic counters, so establish one local dark palette for the whole pill. */
+html.codex-dream-skin [data-above-composer-portal="true"]
+  [class*="bg-background-primary-soft"] {
+  --color-text: var(--ds-text);
+  --color-text-secondary: rgb(var(--ds-text-rgb) / .82);
+  --color-text-tertiary: rgb(var(--ds-text-rgb) / .72);
+  background: rgb(var(--ds-panel-2-rgb) / .98) !important;
+  border-color: var(--ds-line) !important;
+  color: var(--ds-text) !important;
+  -webkit-text-fill-color: var(--ds-text) !important;
+}
+
+html.codex-dream-skin [data-above-composer-portal="true"]
+  [class*="bg-background-primary-soft"] button {
+  color: rgb(var(--ds-text-rgb) / .82) !important;
+  -webkit-text-fill-color: rgb(var(--ds-text-rgb) / .82) !important;
+}
+
+html.codex-dream-skin [data-above-composer-portal="true"] .text-codex-git-added {
+  color: #4ade80 !important;
+  -webkit-text-fill-color: #4ade80 !important;
+}
+
+html.codex-dream-skin [data-above-composer-portal="true"] .text-codex-git-deleted {
+  color: #ff7b72 !important;
+  -webkit-text-fill-color: #ff7b72 !important;
+}
+
+html.codex-dream-skin :is(
+  aside.app-shell-left-panel,
+  main:is(.main-surface, [data-app-shell-main-surface="default"]),
+  .composer-surface-chrome,
+  .dream-skin-home .group\/home-suggestions button
+) {
+  /* Electron can pause CSS transitions at their native-light start frame when
+     the app is backgrounded. Never transition foundational contrast pairs. */
+  transition: none !important;
+}
+
 html.codex-dream-skin aside.app-shell-left-panel {
+  /* Codex 26.810 semantic navigation tokens. */
+  --color-text: var(--ds-text);
+  --color-text-secondary: rgb(var(--ds-text-rgb) / .82);
+  --color-text-tertiary: rgb(var(--ds-text-rgb) / .72);
+  --color-codex-description: rgb(var(--ds-text-rgb) / .72);
   background:
     linear-gradient(180deg,
       rgb(var(--ds-panel-rgb) / .98),
@@ -204,12 +814,15 @@ html.codex-dream-skin aside.app-shell-left-panel {
 
 html.codex-dream-skin aside.app-shell-left-panel nav { background: transparent !important; }
 
+html.codex-dream-skin aside.app-shell-left-panel :is(span, p, small) {
+  color: var(--ds-text) !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+
 html.codex-dream-skin aside.app-shell-left-panel button,
 html.codex-dream-skin aside.app-shell-left-panel a {
   color: var(--ds-text) !important;
-  transition: background-color .18s cubic-bezier(.22, 1, .36, 1),
-    border-color .18s cubic-bezier(.22, 1, .36, 1),
-    color .18s cubic-bezier(.22, 1, .36, 1) !important;
+  transition: none !important;
 }
 
 html.codex-dream-skin aside.app-shell-left-panel [class*="text-token-foreground"] {
@@ -218,6 +831,19 @@ html.codex-dream-skin aside.app-shell-left-panel [class*="text-token-foreground"
 
 html.codex-dream-skin aside.app-shell-left-panel [class*="text-token-input-placeholder-foreground"] {
   color: rgb(var(--ds-muted-rgb) / .92) !important;
+}
+
+html.codex-dream-skin aside.app-shell-left-panel :is(
+  [class*="text-token-foreground-secondary"],
+  [class*="text-token-description-foreground"],
+  [class*="text-token-muted-foreground"],
+  [class*="text-token-text-secondary"],
+  [class*="text-token-text-tertiary"],
+  [class*="text-token-disabled-foreground"],
+  [class*="text-token-foreground/"]
+) {
+  color: rgb(var(--ds-text-rgb) / .78) !important;
+  opacity: 1 !important;
 }
 
 html.codex-dream-skin aside.app-shell-left-panel svg {
@@ -239,7 +865,7 @@ html.codex-dream-skin aside.app-shell-left-panel a:hover svg {
 html.codex-dream-skin aside.app-shell-left-panel button[aria-label^="切换模式"] {
   background: transparent !important;
   border: 0 !important;
-  color: var(--ds-accent) !important;
+  color: rgb(var(--ds-text-rgb) / .92) !important;
   font-family: inherit !important;
   font-size: 19px !important;
   font-weight: 800 !important;
@@ -252,18 +878,92 @@ html.codex-dream-skin aside.app-shell-left-panel button[aria-label^="切换模�
 }
 
 html.codex-dream-skin aside.app-shell-left-panel [class~="bg-token-list-hover-background"],
-html.codex-dream-skin aside.app-shell-left-panel [aria-current="page"] {
+html.codex-dream-skin aside.app-shell-left-panel [aria-current="page"],
+html.codex-dream-skin aside.app-shell-left-panel
+  [data-app-action-sidebar-thread-active="true"] {
   background: rgb(var(--ds-accent-rgb) / .12) !important;
   border: 1px solid rgb(var(--ds-accent-rgb) / .22) !important;
   box-shadow: 0 4px 16px rgb(var(--ds-bg-rgb) / .12) !important;
   color: var(--ds-text) !important;
 }
 
+html.codex-dream-skin aside.app-shell-left-panel
+  [data-app-action-sidebar-thread-active="true"] * {
+  color: var(--ds-text) !important;
+  -webkit-text-fill-color: currentColor !important;
+  opacity: 1 !important;
+}
+
 html.codex-dream-skin aside.app-shell-left-panel [aria-current="page"] svg {
   color: var(--ds-accent) !important;
 }
 
-html.codex-dream-skin main.main-surface {
+/* Settings uses sibling DIV shells instead of the conversation page's
+   ASIDE/MAIN elements. Keep that entire route on one neutral palette; without
+   these paired surfaces the global dark foreground compatibility rules can
+   otherwise land on the native light settings canvas. This remains scoped to
+   the main renderer because compact/auxiliary windows never receive the root
+   codex-dream-skin marker. */
+html.codex-dream-skin div.app-shell-left-panel {
+  background:
+    linear-gradient(180deg,
+      rgb(var(--ds-panel-rgb) / .99),
+      rgb(var(--ds-bg-rgb) / .98)) !important;
+  border-right: 1px solid var(--ds-line) !important;
+  color: var(--ds-text) !important;
+  backdrop-filter: none !important;
+}
+
+html.codex-dream-skin div.app-shell-left-panel :is(button, a) {
+  color: var(--ds-text) !important;
+}
+
+html.codex-dream-skin div.app-shell-left-panel svg {
+  color: rgb(var(--ds-muted-rgb) / .96) !important;
+}
+
+html.codex-dream-skin div.app-shell-left-panel :is(
+  [class~="bg-token-list-hover-background"],
+  [aria-current="page"]
+) {
+  background: rgb(var(--ds-accent-rgb) / .14) !important;
+  border-color: rgb(var(--ds-accent-rgb) / .22) !important;
+  color: var(--ds-text) !important;
+}
+
+html.codex-dream-skin div.app-shell-left-panel
+  [class*="text-token-list-active-selection-foreground"] {
+  color: var(--ds-text) !important;
+  -webkit-text-fill-color: var(--ds-text) !important;
+}
+
+html.codex-dream-skin div.main-surface {
+  background: rgb(var(--ds-bg-rgb) / 1) !important;
+  color: var(--ds-text) !important;
+}
+
+/* Settings grouped rows do not expose a background token, only their shared
+   rounded border structure. Scope the neutral fill under the settings main
+   shell so illustration canvases and auxiliary pet surfaces are untouched. */
+html.codex-dream-skin div.main-surface
+  [class*="overflow-hidden"][class*="rounded-2xl"][class*="border-token-border"] {
+  background: rgb(var(--ds-panel-rgb) / .98) !important;
+  border-color: var(--ds-line) !important;
+  color: var(--ds-text) !important;
+}
+
+/* The 26.803 settings shell dropped its main-surface class while retaining the
+   DIV sidebar and tokenless grouped-row structure. Keep the relational route
+   boundary so empty states become dark-card/light-ink pairs without touching
+   conversation artifacts or the native light file editor. */
+html.codex-dream-skin:has(div.app-shell-left-panel)
+  [class*="overflow-hidden"][class*="rounded-2xl"][class*="border-token-border"] {
+  background: rgb(var(--ds-panel-rgb) / .98) !important;
+  border-color: var(--ds-line) !important;
+  color: var(--ds-text) !important;
+}
+
+html.codex-dream-skin main:is(.main-surface, [data-app-shell-main-surface="default"]) {
   position: relative !important;
   isolation: isolate;
   overflow: hidden !important;
@@ -275,7 +975,7 @@ html.codex-dream-skin main.main-surface {
   box-shadow: -8px 0 28px rgb(var(--ds-bg-rgb) / .18) !important;
 }
 
-html.codex-dream-skin main.main-surface:not(.dream-skin-home-shell)::before {
+html.codex-dream-skin main:is(.main-surface, [data-app-shell-main-surface="default"]):not(.dream-skin-home-shell)::before {
   content: "";
   position: absolute;
   inset: 0;
@@ -288,23 +988,23 @@ html.codex-dream-skin main.main-surface:not(.dream-skin-home-shell)::before {
   opacity: .78;
 }
 
-html.codex-dream-skin[data-dream-shell="light"] main.main-surface:not(.dream-skin-home-shell)::before {
+html.codex-dream-skin[data-dream-shell="light"] main:is(.main-surface, [data-app-shell-main-surface="default"]):not(.dream-skin-home-shell)::before {
   opacity: .72;
 }
 
 html.codex-dream-skin:is([data-dream-art-wide="true"], [data-dream-art-aspect="wide"], [data-dream-art-aspect="ultrawide"])
-  main.main-surface:not(.dream-skin-home-shell)::before {
+  main:is(.main-surface, [data-app-shell-main-surface="default"]):not(.dream-skin-home-shell)::before {
   background-position: center, center, var(--ds-art-position);
   background-size: 100% 100%, 100% 100%, cover;
 }
 
 html.codex-dream-skin:is([data-dream-task-mode="ambient"], [data-dream-art-task-mode="ambient"], [data-dream-task-mode="banner"], [data-dream-art-task-mode="banner"])
-  main.main-surface:not(.dream-skin-home-shell)::before {
+  main:is(.main-surface, [data-app-shell-main-surface="default"]):not(.dream-skin-home-shell)::before {
   inset: 0;
   height: auto;
 }
 
-html.codex-dream-skin:is([data-dream-task-mode="ambient"], [data-dream-art-task-mode="ambient"], [data-dream-task-mode="banner"], [data-dream-art-task-mode="banner"])[data-dream-art-wide="true"]:has(main.main-surface:not(.dream-skin-home-shell)) body {
+html.codex-dream-skin:is([data-dream-task-mode="ambient"], [data-dream-art-task-mode="ambient"], [data-dream-task-mode="banner"], [data-dream-art-task-mode="banner"])[data-dream-art-wide="true"]:has(main:is(.main-surface, [data-app-shell-main-surface="default"]):not(.dream-skin-home-shell)) body {
   background-image: var(--dream-skin-art) !important;
   background-position: var(--ds-art-position) !important;
   background-size: cover !important;
@@ -312,7 +1012,7 @@ html.codex-dream-skin:is([data-dream-task-mode="ambient"], [data-dream-art-task-
   background-attachment: fixed !important;
 }
 
-html.codex-dream-skin:is([data-dream-task-mode="ambient"], [data-dream-art-task-mode="ambient"], [data-dream-task-mode="banner"], [data-dream-art-task-mode="banner"])[data-dream-art-wide="true"]:has(main.main-surface:not(.dream-skin-home-shell))
+html.codex-dream-skin:is([data-dream-task-mode="ambient"], [data-dream-art-task-mode="ambient"], [data-dream-task-mode="banner"], [data-dream-art-task-mode="banner"])[data-dream-art-wide="true"]:has(main:is(.main-surface, [data-app-shell-main-surface="default"]):not(.dream-skin-home-shell))
   aside.app-shell-left-panel {
   background: linear-gradient(90deg,
     var(--ds-task-immersive-sidebar),
@@ -325,13 +1025,13 @@ html.codex-dream-skin:is([data-dream-task-mode="ambient"], [data-dream-art-task-
 
 /* Native sidebar resize chrome inherits the sidebar background and extends
    20px into the main surface. Keeping it clear preserves one continuous image. */
-html.codex-dream-skin:is([data-dream-task-mode="ambient"], [data-dream-art-task-mode="ambient"], [data-dream-task-mode="banner"], [data-dream-art-task-mode="banner"])[data-dream-art-wide="true"]:has(main.main-surface:not(.dream-skin-home-shell))
+html.codex-dream-skin:is([data-dream-task-mode="ambient"], [data-dream-art-task-mode="ambient"], [data-dream-task-mode="banner"], [data-dream-art-task-mode="banner"])[data-dream-art-wide="true"]:has(main:is(.main-surface, [data-app-shell-main-surface="default"]):not(.dream-skin-home-shell))
   aside.app-shell-left-panel::after {
   background: transparent !important;
 }
 
-html.codex-dream-skin:is([data-dream-task-mode="ambient"], [data-dream-art-task-mode="ambient"], [data-dream-task-mode="banner"], [data-dream-art-task-mode="banner"])[data-dream-art-wide="true"]:has(main.main-surface:not(.dream-skin-home-shell))
-  main.main-surface:not(.dream-skin-home-shell) {
+html.codex-dream-skin:is([data-dream-task-mode="ambient"], [data-dream-art-task-mode="ambient"], [data-dream-task-mode="banner"], [data-dream-art-task-mode="banner"])[data-dream-art-wide="true"]:has(main:is(.main-surface, [data-app-shell-main-surface="default"]):not(.dream-skin-home-shell))
+  main:is(.main-surface, [data-app-shell-main-surface="default"]):not(.dream-skin-home-shell) {
   background: linear-gradient(90deg,
     var(--ds-task-immersive-edge),
     var(--ds-task-immersive-mid) 64%,
@@ -342,11 +1042,11 @@ html.codex-dream-skin:is([data-dream-task-mode="ambient"], [data-dream-art-task-
 }
 
 html.codex-dream-skin:is([data-dream-task-mode="ambient"], [data-dream-art-task-mode="ambient"], [data-dream-task-mode="banner"], [data-dream-art-task-mode="banner"])[data-dream-art-wide="true"]
-  main.main-surface:not(.dream-skin-home-shell)::before {
+  main:is(.main-surface, [data-app-shell-main-surface="default"]):not(.dream-skin-home-shell)::before {
   content: none;
 }
 
-html.codex-dream-skin:is([data-dream-task-mode="ambient"], [data-dream-art-task-mode="ambient"], [data-dream-task-mode="banner"], [data-dream-art-task-mode="banner"])[data-dream-art-wide="true"]:has(main.main-surface:not(.dream-skin-home-shell))
+html.codex-dream-skin:is([data-dream-task-mode="ambient"], [data-dream-art-task-mode="ambient"], [data-dream-task-mode="banner"], [data-dream-art-task-mode="banner"])[data-dream-art-wide="true"]:has(main:is(.main-surface, [data-app-shell-main-surface="default"]):not(.dream-skin-home-shell))
   .composer-surface-chrome {
   background: var(--ds-immersive-composer-solid) !important;
   border: 0 !important;
@@ -357,8 +1057,8 @@ html.codex-dream-skin:is([data-dream-task-mode="ambient"], [data-dream-art-task-
   backdrop-filter: none !important;
 }
 
-html.codex-dream-skin:is([data-dream-task-mode="ambient"], [data-dream-art-task-mode="ambient"], [data-dream-task-mode="banner"], [data-dream-art-task-mode="banner"])[data-dream-art-wide="true"]:has(main.main-surface:not(.dream-skin-home-shell))
-  main.main-surface > header.app-header-tint {
+html.codex-dream-skin:is([data-dream-task-mode="ambient"], [data-dream-art-task-mode="ambient"], [data-dream-task-mode="banner"], [data-dream-art-task-mode="banner"])[data-dream-art-wide="true"]:has(main:is(.main-surface, [data-app-shell-main-surface="default"]):not(.dream-skin-home-shell))
+  main:is(.main-surface, [data-app-shell-main-surface="default"]) > header.app-header-tint {
   background: transparent !important;
   border-bottom: 0 !important;
   box-shadow: none !important;
@@ -366,7 +1066,7 @@ html.codex-dream-skin:is([data-dream-task-mode="ambient"], [data-dream-art-task-
 }
 
 html.codex-dream-skin:is([data-dream-task-mode="ambient"], [data-dream-art-task-mode="ambient"], [data-dream-task-mode="banner"], [data-dream-art-task-mode="banner"])[data-dream-art-wide="true"]
-  main.main-surface:not(.dream-skin-home-shell) [class*="_markdown"] {
+  main:is(.main-surface, [data-app-shell-main-surface="default"]):not(.dream-skin-home-shell) [class*="_markdown"] {
   color: var(--ds-text) !important;
   text-shadow:
     0 1px 2px rgb(var(--ds-bg-rgb) / .82),
@@ -374,14 +1074,14 @@ html.codex-dream-skin:is([data-dream-task-mode="ambient"], [data-dream-art-task-
 }
 
 html.codex-dream-skin[data-dream-shell="light"]:is([data-dream-task-mode="ambient"], [data-dream-art-task-mode="ambient"], [data-dream-task-mode="banner"], [data-dream-art-task-mode="banner"])[data-dream-art-wide="true"]
-  main.main-surface:not(.dream-skin-home-shell) [class*="_markdown"] {
+  main:is(.main-surface, [data-app-shell-main-surface="default"]):not(.dream-skin-home-shell) [class*="_markdown"] {
   text-shadow:
     0 1px 2px rgb(var(--ds-panel-rgb) / .92),
     0 0 10px rgb(var(--ds-panel-rgb) / .72);
 }
 
 html.codex-dream-skin:is([data-dream-task-mode="banner"], [data-dream-art-task-mode="banner"])
-  main.main-surface:not(.dream-skin-home-shell)::before {
+  main:is(.main-surface, [data-app-shell-main-surface="default"]):not(.dream-skin-home-shell)::before {
   inset: 0 0 auto;
   height: clamp(280px, 46vh, 520px);
   background-position: center top, center top, var(--ds-art-position);
@@ -389,7 +1089,7 @@ html.codex-dream-skin:is([data-dream-task-mode="banner"], [data-dream-art-task-m
 }
 
 html.codex-dream-skin:is([data-dream-task-mode="banner"], [data-dream-art-task-mode="banner"]):is([data-dream-art-wide="true"], [data-dream-art-aspect="wide"], [data-dream-art-aspect="ultrawide"])
-  main.main-surface:not(.dream-skin-home-shell)::before {
+  main:is(.main-surface, [data-app-shell-main-surface="default"]):not(.dream-skin-home-shell)::before {
   inset: 0;
   height: auto;
   background-position: center, center, var(--ds-art-position);
@@ -397,16 +1097,16 @@ html.codex-dream-skin:is([data-dream-task-mode="banner"], [data-dream-art-task-m
 }
 
 html.codex-dream-skin:is([data-dream-task-mode="off"], [data-dream-art-task-mode="off"])
-  main.main-surface:not(.dream-skin-home-shell)::before {
+  main:is(.main-surface, [data-app-shell-main-surface="default"]):not(.dream-skin-home-shell)::before {
   content: none;
 }
 
-html.codex-dream-skin main.main-surface:not(.dream-skin-home-shell) > :not(header.app-header-tint) {
+html.codex-dream-skin main:is(.main-surface, [data-app-shell-main-surface="default"]):not(.dream-skin-home-shell) > :not(header.app-header-tint) {
   position: relative;
   z-index: 1;
 }
 
-html.codex-dream-skin main.main-surface:not(.dream-skin-home-shell) [role="main"] {
+html.codex-dream-skin main:is(.main-surface, [data-app-shell-main-surface="default"]):not(.dream-skin-home-shell) [role="main"] {
   background: transparent !important;
   color: var(--ds-text) !important;
   text-shadow:
@@ -414,22 +1114,22 @@ html.codex-dream-skin main.main-surface:not(.dream-skin-home-shell) [role="main"
     0 0 10px rgb(var(--ds-bg-rgb) / .46);
 }
 
-html.codex-dream-skin[data-dream-shell="light"] main.main-surface:not(.dream-skin-home-shell) [role="main"] {
+html.codex-dream-skin[data-dream-shell="light"] main:is(.main-surface, [data-app-shell-main-surface="default"]):not(.dream-skin-home-shell) [role="main"] {
   text-shadow: none;
 }
 
-html.codex-dream-skin main.main-surface:not(.dream-skin-home-shell) article {
+html.codex-dream-skin main:is(.main-surface, [data-app-shell-main-surface="default"]):not(.dream-skin-home-shell) article {
   border: 1px solid rgb(var(--ds-muted-rgb) / .12);
   background: rgb(var(--ds-panel-rgb) / .44);
   box-shadow: 0 8px 24px rgb(var(--ds-bg-rgb) / .10);
   backdrop-filter: blur(7px) saturate(105%);
 }
 
-html.codex-dream-skin[data-dream-shell="light"] main.main-surface:not(.dream-skin-home-shell) article {
+html.codex-dream-skin[data-dream-shell="light"] main:is(.main-surface, [data-app-shell-main-surface="default"]):not(.dream-skin-home-shell) article {
   background: rgb(var(--ds-panel-rgb) / .72);
 }
 
-html.codex-dream-skin main.main-surface > header.app-header-tint {
+html.codex-dream-skin main:is(.main-surface, [data-app-shell-main-surface="default"]) > header.app-header-tint {
   /* Preserve Codex's native fixed header geometry and side-panel controls. */
   background: rgb(var(--ds-panel-rgb) / .90) !important;
   border-bottom: 1px solid var(--ds-line) !important;
@@ -544,19 +1244,19 @@ html.codex-dream-skin .dream-skin-home {
   overflow-x: hidden !important;
 }
 
-.dream-skin-home > div:first-child {
+.dream-skin-home > div:has(.group\/home-suggestions) {
   min-height: 100% !important;
   padding-top: 15px !important;
 }
 
-.dream-skin-home > div:first-child > div:first-child {
+.dream-skin-home > div:has(.group\/home-suggestions) > div:first-child {
   flex: 0 0 440px !important;
   min-height: 440px !important;
   align-items: flex-start !important;
   padding-bottom: 0 !important;
 }
 
-.dream-skin-home > div:first-child > div:first-child > div:first-child {
+.dream-skin-home > div:has(.group\/home-suggestions) > div:first-child > div:first-child {
   position: relative !important;
   isolation: isolate;
   width: calc(100% - 44px) !important;
@@ -576,7 +1276,7 @@ html.codex-dream-skin .dream-skin-home {
   box-shadow: 0 16px 38px rgb(var(--ds-bg-rgb) / .30) !important;
 }
 
-.dream-skin-home > div:first-child > div:first-child > div:first-child::before {
+.dream-skin-home > div:has(.group\/home-suggestions) > div:first-child > div:first-child::before {
   content: "";
   position: absolute;
   inset: 0 auto 0 0;
@@ -588,25 +1288,25 @@ html.codex-dream-skin .dream-skin-home {
 }
 
 html.codex-dream-skin:is([data-dream-art-safe="right"], [data-dream-art-safe-area="right"])
-  .dream-skin-home > div:first-child > div:first-child > div:first-child::before {
+  .dream-skin-home > div:has(.group\/home-suggestions) > div:first-child > div:first-child::before {
   inset: 0 0 0 auto;
 }
 
 html.codex-dream-skin:is([data-dream-art-safe="center"], [data-dream-art-safe-area="center"])
-  .dream-skin-home > div:first-child > div:first-child > div:first-child::before {
+  .dream-skin-home > div:has(.group\/home-suggestions) > div:first-child > div:first-child::before {
   inset: 0 14%;
   width: auto;
   border-radius: 0;
 }
 
 html.codex-dream-skin:is([data-dream-art-safe="none"], [data-dream-art-safe-area="none"])
-  .dream-skin-home > div:first-child > div:first-child > div:first-child::before {
+  .dream-skin-home > div:has(.group\/home-suggestions) > div:first-child > div:first-child::before {
   inset: 0;
   width: auto;
   border-radius: 21px;
 }
 
-.dream-skin-home > div:first-child > div:first-child > div:first-child > div:first-child {
+.dream-skin-home > div:has(.group\/home-suggestions) > div:first-child > div:first-child > div:first-child {
   position: relative;
   z-index: 1;
   height: 100%;
@@ -616,29 +1316,29 @@ html.codex-dream-skin:is([data-dream-art-safe="none"], [data-dream-art-safe-area
 }
 
 html.codex-dream-skin:is([data-dream-art-safe="right"], [data-dream-art-safe-area="right"])
-  .dream-skin-home > div:first-child > div:first-child > div:first-child > div:first-child {
+  .dream-skin-home > div:has(.group\/home-suggestions) > div:first-child > div:first-child > div:first-child {
   justify-content: flex-end !important;
 }
 
 html.codex-dream-skin:is([data-dream-art-safe="center"], [data-dream-art-safe-area="center"])
-  .dream-skin-home > div:first-child > div:first-child > div:first-child > div:first-child {
+  .dream-skin-home > div:has(.group\/home-suggestions) > div:first-child > div:first-child > div:first-child {
   justify-content: center !important;
 }
 
-.dream-skin-home > div:first-child > div:first-child > div:first-child > div:first-child > div:first-child {
+.dream-skin-home > div:has(.group\/home-suggestions) > div:first-child > div:first-child > div:first-child > div:first-child {
   width: min(46%, 520px) !important;
   align-items: flex-start !important;
   gap: 0 !important;
 }
 
 html.codex-dream-skin:is([data-dream-art-safe="right"], [data-dream-art-safe-area="right"])
-  .dream-skin-home > div:first-child > div:first-child > div:first-child > div:first-child > div:first-child {
+  .dream-skin-home > div:has(.group\/home-suggestions) > div:first-child > div:first-child > div:first-child > div:first-child {
   align-items: flex-end !important;
   text-align: right !important;
 }
 
 html.codex-dream-skin:is([data-dream-art-safe="center"], [data-dream-art-safe-area="center"])
-  .dream-skin-home > div:first-child > div:first-child > div:first-child > div:first-child > div:first-child {
+  .dream-skin-home > div:has(.group\/home-suggestions) > div:first-child > div:first-child > div:first-child > div:first-child {
   width: min(58%, 640px) !important;
   align-items: center !important;
   text-align: center !important;
@@ -693,7 +1393,7 @@ html.codex-dream-skin:is([data-dream-art-safe="center"], [data-dream-art-safe-ar
   opacity: .86;
 }
 
-.dream-skin-home > div:first-child > div:first-child > div:first-child > div:nth-child(2) {
+.dream-skin-home > div:has(.group\/home-suggestions) > div:first-child > div:first-child > div:nth-child(2) {
   left: 14px !important;
   right: 14px !important;
   top: 100% !important;
@@ -707,7 +1407,7 @@ html.codex-dream-skin:is([data-dream-art-safe="center"], [data-dream-art-safe-ar
   min-height: 118px !important;
   padding: 14px 13px 12px !important;
   align-items: stretch !important;
-  justify-content: flex-start !important;
+  justify-content: center !important;
   text-align: center !important;
   border: 1px solid rgb(var(--ds-muted-rgb) / .18) !important;
   border-radius: 18px !important;
@@ -749,7 +1449,18 @@ html.codex-dream-skin:is([data-dream-art-safe="center"], [data-dream-art-safe-ar
 }
 
 .dream-skin-home .group\/home-suggestions button > span:first-child { justify-content: center !important; }
-.dream-skin-home .group\/home-suggestions button > span:last-child { align-items: center !important; text-align: center !important; }
+.dream-skin-home .group\/home-suggestions button > span:last-child {
+  min-height: 20px !important;
+  margin-top: 8px !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
+}
+
+.dream-skin-home .group\/home-suggestions button > span:last-child > :is(.text-default, [id$="-label"]) {
+  color: rgb(var(--ds-text-rgb) / .94) !important;
+  -webkit-text-fill-color: rgb(var(--ds-text-rgb) / .94) !important;
+}
 
 html.codex-dream-skin .composer-surface-chrome {
   overflow: visible !important;
@@ -764,7 +1475,7 @@ html.codex-dream-skin .composer-surface-chrome::before { content: none !importan
 
 /* A wide image can carry the home screen too. The native hero remains live,
    but the artwork is painted once on the window instead of repeated in a card. */
-html.codex-dream-skin[data-dream-art-wide="true"]:has(main.main-surface.dream-skin-home-shell) body {
+html.codex-dream-skin[data-dream-art-wide="true"]:has(main:is(.main-surface, [data-app-shell-main-surface="default"]).dream-skin-home-shell) body {
   background-image: var(--dream-skin-art) !important;
   background-position: var(--ds-art-position) !important;
   background-size: cover !important;
@@ -772,7 +1483,7 @@ html.codex-dream-skin[data-dream-art-wide="true"]:has(main.main-surface.dream-sk
   background-attachment: fixed !important;
 }
 
-html.codex-dream-skin[data-dream-art-wide="true"]:has(main.main-surface.dream-skin-home-shell)
+html.codex-dream-skin[data-dream-art-wide="true"]:has(main:is(.main-surface, [data-app-shell-main-surface="default"]).dream-skin-home-shell)
   aside.app-shell-left-panel {
   background: linear-gradient(90deg,
     var(--ds-immersive-sidebar),
@@ -783,12 +1494,12 @@ html.codex-dream-skin[data-dream-art-wide="true"]:has(main.main-surface.dream-sk
   backdrop-filter: none !important;
 }
 
-html.codex-dream-skin[data-dream-art-wide="true"]:has(main.main-surface.dream-skin-home-shell)
+html.codex-dream-skin[data-dream-art-wide="true"]:has(main:is(.main-surface, [data-app-shell-main-surface="default"]).dream-skin-home-shell)
   aside.app-shell-left-panel::after {
   background: transparent !important;
 }
 
-html.codex-dream-skin[data-dream-art-wide="true"] main.main-surface.dream-skin-home-shell {
+html.codex-dream-skin[data-dream-art-wide="true"] main:is(.main-surface, [data-app-shell-main-surface="default"]).dream-skin-home-shell {
   background: linear-gradient(90deg,
     var(--ds-immersive-edge),
     var(--ds-immersive-mid) 64%,
@@ -798,7 +1509,7 @@ html.codex-dream-skin[data-dream-art-wide="true"] main.main-surface.dream-skin-h
   box-shadow: none !important;
 }
 
-html.codex-dream-skin[data-dream-art-wide="true"] main.main-surface.dream-skin-home-shell
+html.codex-dream-skin[data-dream-art-wide="true"] main:is(.main-surface, [data-app-shell-main-surface="default"]).dream-skin-home-shell
   > header.app-header-tint {
   background: transparent !important;
   border-bottom: 0 !important;
@@ -806,7 +1517,7 @@ html.codex-dream-skin[data-dream-art-wide="true"] main.main-surface.dream-skin-h
   backdrop-filter: none !important;
 }
 
-html.codex-dream-skin[data-dream-art-wide="true"] main.main-surface
+html.codex-dream-skin[data-dream-art-wide="true"] main:is(.main-surface, [data-app-shell-main-surface="default"])
   > header.app-header-tint {
   color: var(--ds-text) !important;
   text-shadow:
@@ -814,26 +1525,26 @@ html.codex-dream-skin[data-dream-art-wide="true"] main.main-surface
     0 0 8px rgb(var(--ds-bg-rgb) / .52) !important;
 }
 
-html.codex-dream-skin[data-dream-art-wide="true"] main.main-surface
+html.codex-dream-skin[data-dream-art-wide="true"] main:is(.main-surface, [data-app-shell-main-surface="default"])
   > header.app-header-tint svg {
   color: rgb(var(--ds-muted-rgb) / .96) !important;
   filter: drop-shadow(0 1px 2px rgb(var(--ds-bg-rgb) / .72));
 }
 
-html.codex-dream-skin[data-dream-art-wide="true"] main.main-surface.dream-skin-home-shell
-  .dream-skin-home > div:first-child > div:first-child > div:first-child {
+html.codex-dream-skin[data-dream-art-wide="true"] main:is(.main-surface, [data-app-shell-main-surface="default"]).dream-skin-home-shell
+  .dream-skin-home > div:has(.group\/home-suggestions) > div:first-child > div:first-child {
   border: 0 !important;
   border-radius: 0 !important;
   background: transparent !important;
   box-shadow: none !important;
 }
 
-html.codex-dream-skin[data-dream-art-wide="true"] main.main-surface.dream-skin-home-shell
-  .dream-skin-home > div:first-child > div:first-child > div:first-child::before {
+html.codex-dream-skin[data-dream-art-wide="true"] main:is(.main-surface, [data-app-shell-main-surface="default"]).dream-skin-home-shell
+  .dream-skin-home > div:has(.group\/home-suggestions) > div:first-child > div:first-child::before {
   content: none !important;
 }
 
-html.codex-dream-skin[data-dream-art-wide="true"] main.main-surface.dream-skin-home-shell
+html.codex-dream-skin[data-dream-art-wide="true"] main:is(.main-surface, [data-app-shell-main-surface="default"]).dream-skin-home-shell
   .dream-skin-home .group\/home-suggestions button {
   background: rgb(var(--ds-panel-rgb) / .56) !important;
   box-shadow:
@@ -948,20 +1659,87 @@ html.codex-dream-skin .composer-surface-chrome p.placeholder::after {
   opacity: 1 !important;
 }
 
+/* Codex 26.803+ paints an opaque light layout body inside the themed composer.
+   Bind the correction to native data attributes so the new-chat composer is
+   readable on its first frame, before renderer semantic classes are attached. */
+html.codex-dream-skin [data-codex-composer-root]
+  [data-composer-surface-variant] {
+  color: var(--ds-text) !important;
+  -webkit-text-fill-color: var(--ds-text) !important;
+  background: rgb(var(--ds-panel-rgb) / .94) !important;
+}
+
+html.codex-dream-skin [data-codex-composer-root]
+  [data-composer-surface-variant] > [data-composer-layout] {
+  color: inherit !important;
+  -webkit-text-fill-color: inherit !important;
+  background: transparent !important;
+}
+
+html.codex-dream-skin[data-dream-art-wide="true"] [data-codex-composer-root]
+  [data-composer-surface-variant] {
+  background: var(--ds-immersive-composer-solid) !important;
+}
+
+html.codex-dream-skin [data-codex-composer-root][data-composer-placement="home"]
+  [data-composer-home-utility-bar-position][data-composer-placement="home"] {
+  top: 0 !important;
+  width: 100% !important;
+  margin-inline: 0 !important;
+  padding-inline: 18px !important;
+  border-radius: 22px 22px 0 0 !important;
+  color: var(--ds-text) !important;
+  -webkit-text-fill-color: var(--ds-text) !important;
+  background: var(--ds-immersive-composer-solid) !important;
+  box-shadow:
+    inset 1px 0 var(--ds-immersive-line),
+    inset -1px 0 var(--ds-immersive-line),
+    inset 0 1px rgb(var(--ds-text-rgb) / .12) !important;
+}
+
+html.codex-dream-skin [data-codex-composer-root][data-composer-placement="home"]
+  [data-composer-home-utility-bar-position] button,
+html.codex-dream-skin [data-codex-composer-root]
+  [data-composer-surface-variant] button:not([class~="bg-token-foreground"]) {
+  color: var(--ds-muted) !important;
+  -webkit-text-fill-color: var(--ds-muted) !important;
+}
+
+html.codex-dream-skin [data-codex-composer-root][data-composer-placement="home"]
+  [data-composer-home-utility-bar-position] button *,
+html.codex-dream-skin [data-codex-composer-root]
+  [data-composer-surface-variant] button:not([class~="bg-token-foreground"]) * {
+  color: currentColor !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+
+/* The sidebar updater badge is 10px text, so Codex's native bright chart blue
+   does not meet normal-text contrast with white ink. */
+html.codex-dream-skin aside.app-shell-left-panel button.bg-token-charts-blue {
+  background: #0b5f9f !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+}
+
+html.codex-dream-skin aside.app-shell-left-panel button.bg-token-charts-blue * {
+  color: currentColor !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+
 /* Search routes ship an opaque sticky band and input surface. Keep the
    control legible while allowing the selected image to remain continuous. */
 html.codex-dream-skin:is([data-dream-task-mode="ambient"], [data-dream-art-task-mode="ambient"])[data-dream-art-wide="true"]
-  main.main-surface:not(.dream-skin-home-shell) div.sticky:has(input[type="text"]) {
+  main:is(.main-surface, [data-app-shell-main-surface="default"]):not(.dream-skin-home-shell) div.sticky:has(input[type="text"]) {
   background: transparent !important;
 }
 
 html.codex-dream-skin:is([data-dream-task-mode="ambient"], [data-dream-art-task-mode="ambient"])[data-dream-art-wide="true"]
-  main.main-surface:not(.dream-skin-home-shell) div.sticky:has(input[type="text"])::after {
+  main:is(.main-surface, [data-app-shell-main-surface="default"]):not(.dream-skin-home-shell) div.sticky:has(input[type="text"])::after {
   background: transparent !important;
 }
 
 html.codex-dream-skin:is([data-dream-task-mode="ambient"], [data-dream-art-task-mode="ambient"])[data-dream-art-wide="true"]
-  main.main-surface:not(.dream-skin-home-shell) div.no-drag:has(> input[type="text"]) {
+  main:is(.main-surface, [data-app-shell-main-surface="default"]):not(.dream-skin-home-shell) div.no-drag:has(> input[type="text"]) {
   background: var(--ds-immersive-composer) !important;
   border: 0 !important;
   box-shadow:
@@ -973,18 +1751,18 @@ html.codex-dream-skin:is([data-dream-task-mode="ambient"], [data-dream-art-task-
 /* Pull Requests and similar utility routes wrap their content in a native
    full-size opaque surface. Only clear full-window wrappers, not cards. */
 html.codex-dream-skin:is([data-dream-task-mode="ambient"], [data-dream-art-task-mode="ambient"])[data-dream-art-wide="true"]
-  main.main-surface:not(.dream-skin-home-shell)
+  main:is(.main-surface, [data-app-shell-main-surface="default"]):not(.dream-skin-home-shell)
   [class~="bg-token-main-surface-primary"][class~="h-full"][class~="w-full"] {
   background: transparent !important;
 }
 
-html.codex-dream-skin[data-dream-art-wide="true"] main.main-surface
+html.codex-dream-skin[data-dream-art-wide="true"] main:is(.main-surface, [data-app-shell-main-surface="default"])
   .app-shell-main-content-frame {
   border-top: 0 !important;
 }
 
-html.codex-dream-skin[data-dream-art-wide="true"] main.main-surface
-  .app-shell-main-content-top-fade {
+html.codex-dream-skin[data-dream-art-wide="true"] main:is(.main-surface, [data-app-shell-main-surface="default"])
+  :is(.app-shell-main-content-top-fade, [class*="_MainContentTopFade_"]) {
   display: none !important;
   background: transparent !important;
 }
@@ -992,8 +1770,8 @@ html.codex-dream-skin[data-dream-art-wide="true"] main.main-surface
 /* Codex paints a second opaque fade behind the sticky composer. The composer
    already owns its readable surface, so retaining this layer creates a false
    bottom panel and makes the control look duplicated. */
-html.codex-dream-skin[data-dream-art-wide="true"] main.main-surface
-  .thread-scroll-container .bg-gradient-to-t.from-token-main-surface-primary {
+html.codex-dream-skin[data-dream-art-wide="true"] main:is(.main-surface, [data-app-shell-main-surface="default"])
+  .thread-scroll-container .bg-gradient-to-t:is(.from-token-main-surface-primary, .from-surface) {
   background: transparent !important;
 }
 
@@ -1031,9 +1809,37 @@ html.codex-dream-skin .ProseMirror {
 }
 
 html.codex-dream-skin button[class~="bg-token-foreground"] {
-  background: var(--ds-accent) !important;
+  background: color-mix(in srgb, var(--ds-accent) 58%, var(--ds-text) 42%) !important;
   color: var(--ds-on-accent) !important;
   box-shadow: 0 5px 14px rgb(var(--ds-accent-rgb) / .20) !important;
+}
+
+/* Small deletion counters use the native light-shell red, which falls below
+   AA on every dark mentor card. Keep the semantic hue but lift its luminance. */
+html.codex-dream-skin :is(
+  [class*="text-token-git-decoration-deleted-resource-foreground"],
+  .text-codex-git-deleted
+) {
+  color: #ff7b72 !important;
+  -webkit-text-fill-color: #ff7b72 !important;
+}
+
+html.codex-dream-skin[data-dream-shell="light"]
+  :is(
+    [class*="text-token-git-decoration-deleted-resource-foreground"],
+    .text-codex-git-deleted
+  ) {
+  color: #9b1c1c !important;
+  -webkit-text-fill-color: #9b1c1c !important;
+}
+
+/* The model picker now renders its selected effort label through a generated
+   view-toggle component rather than a foreground token. Scope the repair to a
+   menu portal so ordinary native light controls keep their own ink. */
+html.codex-dream-skin [role="menu"] [class*="_ViewToggleContent_"] {
+  color: var(--ds-text) !important;
+  -webkit-text-fill-color: var(--ds-text) !important;
+  opacity: 1 !important;
 }
 
 html.codex-dream-skin article,
@@ -1042,22 +1848,22 @@ html.codex-dream-skin [data-message-author-role] { border-radius: 16px; }
 @media (max-width: 1120px) {
   .dream-skin-status { display: none !important; }
   .dream-skin-home { --thread-content-max-width: min(940px, calc(100cqw - 30px)) !important; }
-  .dream-skin-home > div:first-child > div:first-child > div:first-child { width: calc(100% - 28px) !important; }
+  .dream-skin-home > div:has(.group\/home-suggestions) > div:first-child > div:first-child { width: calc(100% - 28px) !important; }
 }
 
 @media (max-width: 900px) {
   .dream-skin-brand { left: 15px; }
   .dream-skin-brand b { font-size: 12px; }
-  .dream-skin-home > div:first-child > div:first-child {
+  .dream-skin-home > div:has(.group\/home-suggestions) > div:first-child {
     flex-basis: 408px !important;
     min-height: 408px !important;
   }
-  .dream-skin-home > div:first-child > div:first-child > div:first-child {
+  .dream-skin-home > div:has(.group\/home-suggestions) > div:first-child > div:first-child {
     height: 232px !important;
     min-height: 232px !important;
   }
-  .dream-skin-home > div:first-child > div:first-child > div:first-child > div:first-child { padding: 0 26px; }
-  .dream-skin-home > div:first-child > div:first-child > div:first-child > div:first-child > div:first-child {
+  .dream-skin-home > div:has(.group\/home-suggestions) > div:first-child > div:first-child > div:first-child { padding: 0 26px; }
+  .dream-skin-home > div:has(.group\/home-suggestions) > div:first-child > div:first-child > div:first-child > div:first-child {
     width: min(58%, 460px) !important;
   }
   .dream-skin-home [data-feature="game-source"] { font-size: 18px !important; }
@@ -1067,6 +1873,11 @@ html.codex-dream-skin [data-message-author-role] { border-radius: 16px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
+  html.codex-dream-skin[data-dream-theme-transition="true"] body::after {
+    animation: none !important;
+    opacity: 0 !important;
+  }
+
   html.codex-dream-skin *,
   html.codex-dream-skin *::before,
   html.codex-dream-skin *::after {

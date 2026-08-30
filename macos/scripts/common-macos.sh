@@ -12,6 +12,7 @@ fi
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd -P)"
 INJECTOR="$SCRIPT_DIR/injector.mjs"
+CONVERSATION_ROUTER="$SCRIPT_DIR/conversation-theme-router.mjs"
 INSTALL_ROOT="$HOME/.codex/codex-dream-skin-studio"
 STATE_ROOT="$HOME/Library/Application Support/CodexDreamSkinStudio"
 STATE_PATH="$STATE_ROOT/state.json"
@@ -22,11 +23,20 @@ THEME_DIR="$STATE_ROOT/theme"
 CONFIG_PATH="$HOME/.codex/config.toml"
 INJECTOR_LOG="$STATE_ROOT/injector.log"
 INJECTOR_ERROR_LOG="$STATE_ROOT/injector-error.log"
+ROUTER_LOG="$STATE_ROOT/conversation-router.log"
+ROUTER_ERROR_LOG="$STATE_ROOT/conversation-router-error.log"
+AUTOSTART_LOG="$STATE_ROOT/autostart.log"
+AUTOSTART_ERROR_LOG="$STATE_ROOT/autostart-error.log"
 APP_LOG="$STATE_ROOT/codex-launch.log"
 APP_ERROR_LOG="$STATE_ROOT/codex-launch-error.log"
 START_ERROR_LOG="$STATE_ROOT/start-error.log"
 CODEX_APP_JOB_LABEL="com.openai.codex-dream-skin-studio.app"
 INJECTOR_JOB_LABEL="com.openai.codex-dream-skin-studio.injector"
+ROUTER_JOB_LABEL="com.openai.codex-dream-skin-studio.conversation-router"
+CONVERSATION_ROUTER_PID=""
+AUTOSTART_JOB_LABEL="com.openai.codex-dream-skin-studio.autostart"
+AUTOSTART_PLIST_PATH="$HOME/Library/LaunchAgents/$AUTOSTART_JOB_LABEL.plist"
+MENTOR_THEME_IDS="mentor-demis-ai,mentor-elon-build,mentor-duan-invest,mentor-lisa-life"
 EXPECTED_CODEX_TEAM_ID="2DC432GLL2"
 EXPECTED_CODEX_REQUIREMENT="anchor apple generic and certificate leaf[subject.OU] = \"$EXPECTED_CODEX_TEAM_ID\""
 SKIN_VERSION="1.2.0"
@@ -205,14 +215,15 @@ finish_client_operation() {
 
 # Seed bundled preset packs into the user's themes/ library so a fresh install
 # ships with ready-to-use skins. Idempotent (each preset is refreshed in place)
-# and scoped to preset-* ids, so user-made custom-* packs are never touched.
+# and scoped to bundled preset-* / mentor-* ids, so user-made custom-* packs
+# are never touched.
 seed_bundled_presets() {
   local presets_root="$PROJECT_ROOT/presets"
   [ -d "$presets_root" ] || return 0
   local themes_root="$STATE_ROOT/themes"
   /bin/mkdir -p "$themes_root"
   local src id dest entry
-  for src in "$presets_root"/preset-*/; do
+  for src in "$presets_root"/preset-*/ "$presets_root"/mentor-*/; do
     [ -d "$src" ] || continue
     [ -f "${src}theme.json" ] || continue
     id="$(/usr/bin/basename "$src")"
@@ -226,6 +237,70 @@ seed_bundled_presets() {
     done
     /bin/chmod 600 "$dest"/* 2>/dev/null || true
   done
+}
+
+stop_conversation_router() {
+  /bin/launchctl remove "$ROUTER_JOB_LABEL" >/dev/null 2>&1 || true
+}
+
+conversation_router_is_running() {
+  local port="$1"
+  local pid=""
+  pid="$(/bin/ps -axo pid=,command= | /usr/bin/awk \
+    -v router="$CONVERSATION_ROUTER" -v wanted_port="$port" '
+      {
+        router_match = 0
+        port_match = 0
+        for (field = 2; field <= NF; field += 1) {
+          if ($field == router) router_match = 1
+          if ($field == "--port" && $(field + 1) == wanted_port) port_match = 1
+        }
+        if (router_match && port_match) { print $1; exit }
+      }
+    ')"
+  [ -n "$pid" ] && /bin/kill -0 "$pid" 2>/dev/null
+}
+
+remove_autostart_agent() {
+  /bin/launchctl bootout "gui/$(/usr/bin/id -u)/$AUTOSTART_JOB_LABEL" >/dev/null 2>&1 || true
+  /bin/launchctl remove "$AUTOSTART_JOB_LABEL" >/dev/null 2>&1 || true
+  /bin/rm -f "$AUTOSTART_PLIST_PATH"
+}
+
+launch_conversation_router() {
+  local port="$1"
+  local pid=""
+  local deadline=$((SECONDS + 10))
+  CONVERSATION_ROUTER_PID=""
+  [ -f "$CONVERSATION_ROUTER" ] || fail "Conversation theme router is missing: $CONVERSATION_ROUTER"
+  : > "$ROUTER_LOG"
+  : > "$ROUTER_ERROR_LOG"
+  stop_conversation_router
+  if /bin/launchctl submit -l "$ROUTER_JOB_LABEL" -o "$ROUTER_LOG" -e "$ROUTER_ERROR_LOG" -- \
+    "$NODE" "$CONVERSATION_ROUTER" --port "$port" --state-root "$STATE_ROOT" \
+    --switch-script "$SCRIPT_DIR/switch-theme-macos.sh" --theme-ids "$MENTOR_THEME_IDS" \
+    >/dev/null 2>&1; then
+    while [ "$SECONDS" -lt "$deadline" ]; do
+      pid="$(/bin/launchctl print "gui/$(/usr/bin/id -u)/$ROUTER_JOB_LABEL" 2>/dev/null \
+        | /usr/bin/awk '/^[[:space:]]*pid = [0-9]+/{print $3; exit}' || true)"
+      if [ -n "$pid" ] && /bin/kill -0 "$pid" 2>/dev/null; then
+        CONVERSATION_ROUTER_PID="$pid"
+        printf '%s\n' "$pid"
+        return 0
+      fi
+      /bin/sleep 0.2
+    done
+    stop_conversation_router
+  fi
+  /usr/bin/nohup "$NODE" "$CONVERSATION_ROUTER" --port "$port" --state-root "$STATE_ROOT" \
+    --switch-script "$SCRIPT_DIR/switch-theme-macos.sh" --theme-ids "$MENTOR_THEME_IDS" \
+    >>"$ROUTER_LOG" 2>>"$ROUTER_ERROR_LOG" &
+  pid="$!"
+  /bin/sleep 0.15
+  [ -n "$pid" ] && /bin/kill -0 "$pid" 2>/dev/null \
+    || fail "The conversation theme router did not start. See $ROUTER_ERROR_LOG"
+  CONVERSATION_ROUTER_PID="$pid"
+  printf '%s\n' "$pid"
 }
 
 discover_codex_app() {
@@ -590,6 +665,49 @@ mark_state_active() {
   ' "$STATE_PATH" "$THEME_DIR"
 }
 
+mark_state_compatible() {
+  local report_path="${1:-}"
+  [ -f "$STATE_PATH" ] || return 1
+  "$NODE" -e '
+    const fs = require("node:fs");
+    const [file, reportPath] = process.argv.slice(1);
+    const state = JSON.parse(fs.readFileSync(file, "utf8"));
+    state.compatibilityStatus = "passed";
+    state.compatibilityReport = reportPath;
+    state.compatibilityCheckedAt = new Date().toISOString();
+    delete state.incompatibleAt;
+    delete state.incompatibleCodexVersion;
+    const temporary = `${file}.${process.pid}.tmp`;
+    fs.writeFileSync(temporary, `${JSON.stringify(state, null, 2)}\n`, { mode: 0o600 });
+    fs.renameSync(temporary, file);
+  ' "$STATE_PATH" "$report_path"
+}
+
+mark_state_incompatible() {
+  local codex_version="${1:-unknown}"
+  local report_path="${2:-}"
+  [ -f "$STATE_PATH" ] || return 1
+  "$NODE" -e '
+    const fs = require("node:fs");
+    const [file, codexVersion, reportPath] = process.argv.slice(1);
+    const state = JSON.parse(fs.readFileSync(file, "utf8"));
+    state.session = "incompatible";
+    state.injectorPid = 0;
+    state.injectorStartedAt = "";
+    state.compatibilityStatus = "failed";
+    state.compatibilityReport = reportPath;
+    state.incompatibleCodexVersion = codexVersion;
+    state.incompatibleAt = new Date().toISOString();
+    state.updatedAt = state.incompatibleAt;
+    delete state.appliedThemeId;
+    delete state.appliedThemeName;
+    delete state.verifiedAt;
+    const temporary = `${file}.${process.pid}.tmp`;
+    fs.writeFileSync(temporary, `${JSON.stringify(state, null, 2)}\n`, { mode: 0o600 });
+    fs.renameSync(temporary, file);
+  ' "$STATE_PATH" "$codex_version" "$report_path"
+}
+
 mark_state_stale() {
   [ -f "$STATE_PATH" ] || return 0
   "$NODE" -e '
@@ -753,7 +871,7 @@ hot_reapply_theme() {
   local port="${1:-9341}"
   local timeout_ms="${2:-8000}"
   local operation_token="${3:-}"
-  local operation_args=()
+  local silent="${4:-false}"
   local inj_pid=""
   local injector_protocol=""
   local injector_mode=""
@@ -764,9 +882,10 @@ hot_reapply_theme() {
   # endpoint already verified as belonging to the official Codex process.
   ensure_node_runtime || return 1
   verified_cdp_endpoint "$port" || return 1
-  [ -n "$operation_token" ] || operation_token="$(new_operation_token)"
-  write_operation_state applying "正在应用已选主题" "$operation_token" || return 1
-  operation_args=(--operation-token "$operation_token")
+  if [ "$silent" != "true" ]; then
+    [ -n "$operation_token" ] || operation_token="$(new_operation_token)"
+    write_operation_state applying "正在应用已选主题" "$operation_token" || return 1
+  fi
 
   injector_protocol="$(state_field injectorProtocol 2>/dev/null || true)"
   injector_mode="$(state_field injectorMode 2>/dev/null || true)"
@@ -775,16 +894,24 @@ hot_reapply_theme() {
       index($0, inj) && index($0, "--watch") && index($0, "--port " port " --theme-dir ") { print $1; exit }
     ')"
   fi
-  if ! "$NODE" "$INJECTOR" --once --port "$port" --theme-dir "$THEME_DIR" \
-    --timeout-ms "$timeout_ms" "${operation_args[@]}" >/dev/null 2>&1; then
-    return 1
+  # macOS still ships Bash 3.2, where expanding an empty array under `set -u`
+  # raises an unbound-variable error. Keep the silent router path scalar and
+  # add the operation token only in the interactive branch.
+  if [ "$silent" = "true" ]; then
+    "$NODE" "$INJECTOR" --once --port "$port" --theme-dir "$THEME_DIR" \
+      --timeout-ms "$timeout_ms" >/dev/null 2>&1 || return 1
+  else
+    "$NODE" "$INJECTOR" --once --port "$port" --theme-dir "$THEME_DIR" \
+      --timeout-ms "$timeout_ms" --operation-token "$operation_token" >/dev/null 2>&1 || return 1
   fi
 
   # A current watcher reloads theme files itself. Start one only when absent.
   if [ -n "$inj_pid" ] && /bin/kill -0 "$inj_pid" 2>/dev/null \
     && [ "$injector_mode" != "control" ]; then
     mark_state_active || return 1
-    write_operation_state success "皮肤已应用" "$operation_token" || return 1
+    if [ "$silent" != "true" ]; then
+      write_operation_state success "皮肤已应用" "$operation_token" || return 1
+    fi
     return 0
   fi
   stop_recorded_injector 2>/dev/null || return 1
@@ -794,7 +921,9 @@ hot_reapply_theme() {
   codex_pid="$(codex_main_pids 2>/dev/null | /usr/bin/head -n 1)"
   [ -n "$started_at" ] || started_at="$(/bin/date)"
   write_state "$port" "$inj_pid" "$started_at" "${codex_pid:-0}" active
-  write_operation_state success "皮肤已应用" "$operation_token" || return 1
+  if [ "$silent" != "true" ]; then
+    write_operation_state success "皮肤已应用" "$operation_token" || return 1
+  fi
   return 0
 }
 

@@ -21,6 +21,8 @@ done
 discover_codex_app
 require_macos_runtime
 ensure_state_root
+remove_autostart_agent
+stop_conversation_router
 if [ "$PORT_EXPLICIT" = "false" ] && [ -f "$STATE_PATH" ]; then
   PORT="$(state_field port)" || fail "Could not read the saved CDP port; state was preserved."
 fi

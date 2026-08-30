@@ -98,4 +98,6 @@ printf 'Bundled presets are ready in your theme library — pick one from the me
 
 if [ "$LAUNCH_AFTER_INSTALL" = "true" ]; then
   "$SCRIPT_DIR/start-dream-skin-macos.sh" --port "$PORT" --prompt-restart
+else
+  "$SCRIPT_DIR/install-autostart-macos.sh" --port "$PORT"
 fi

@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "id": "mentor-elon-build",
+  "name": "Elon · Build 事业局",
+  "brandSubtitle": "BUILD & VENTURE · ELON MUSK",
+  "tagline": "从第一性原理出发，把想法造出来，把系统推进到现实。",
+  "projectPrefix": "开始建造 · ",
+  "projectLabel": "◉  选择 Build 任务",
+  "statusText": "BUILD MODE",
+  "quote": "Turn the factory itself into a product.",
+  "image": "background.png",
+  "appearance": "dark",
+  "art": {
+    "safeArea": "left",
+    "taskMode": "ambient",
+    "focusX": 0.78,
+    "focusY": 0.48
+  },
+  "colors": {
+    "background": "#0d0e10",
+    "panel": "#151619",
+    "panelAlt": "#1c1d20",
+    "accent": "#d36d32",
+    "accentAlt": "#d36d32",
+    "secondary": "#d36d32",
+    "highlight": "#d36d32",
+    "text": "#f3f0ec",
+    "muted": "#aaa49d",
+    "line": "rgba(211, 109, 50, .25)"
+  }
+}

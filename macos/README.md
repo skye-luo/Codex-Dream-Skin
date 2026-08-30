@@ -46,6 +46,28 @@ Install location after step 2:
 | State / logs / user images | `~/Library/Application Support/CodexDreamSkinStudio` |
 | Theme backup | under Application Support (`theme-backup.json`) |
 
+## Live visual regression
+
+Static CSS checks do not prove that a native menu actually opened. With Codex
+running on the verified local CDP port, audit the real rendered UI instead:
+
+```bash
+# Baseline plus profile, quota, help, chat, model, access, and attachment states.
+node ./tests/live-contrast-audit.mjs \
+  --out ../verification/live-ui-audit --fail-on-contrast
+
+# Repeat the same audit across all four mentor palettes. The runner temporarily
+# pauses automatic routing, verifies the actual theme name before each scan,
+# then restores Lisa as the default and re-enables routing even on failure.
+./tests/run-live-theme-matrix.sh ../verification/live-theme-matrix
+```
+
+Each tested state gets a screenshot and a JSON/Markdown report. A state is
+reported as `skipped`, never passed, when its trigger or expected portal cannot
+be observed. The contrast gate evaluates visible text nodes against their
+composited live surfaces at WCAG AA thresholds; keep manual review for artwork,
+native overlays, and any state the renderer does not expose as DOM.
+
 ## Customer ZIP (optional packaging)
 
 To build the “double-click install” folder layout for non-git users:

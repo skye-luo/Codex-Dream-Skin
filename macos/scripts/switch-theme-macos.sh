@@ -7,6 +7,7 @@ set -euo pipefail
 
 THEME_ID=""
 APPLY_NOW="true"
+QUIET="false"
 OPERATION_TOKEN=""
 stage=""
 
@@ -25,6 +26,7 @@ while [ "$#" -gt 0 ]; do
   case "$1" in
     --id) THEME_ID="${2:-}"; shift 2 ;;
     --no-apply) APPLY_NOW="false"; shift ;;
+    --quiet) QUIET="true"; shift ;;
     *) fail "Unknown argument: $1" ;;
   esac
 done
@@ -40,7 +42,7 @@ THEMES_ROOT="$STATE_ROOT/themes"
 SRC="$THEMES_ROOT/$THEME_ID"
 [ -d "$SRC" ] || fail "Theme not found: $THEME_ID"
 [ -f "$SRC/theme.json" ] || fail "theme.json missing in $THEME_ID"
-if [ "$APPLY_NOW" = "true" ]; then
+if [ "$APPLY_NOW" = "true" ] && [ "$QUIET" != "true" ]; then
   OPERATION_TOKEN="$(new_operation_token)"
   write_operation_state applying "正在切换主题" "$OPERATION_TOKEN" \
     || fail "Could not publish the theme switch operation state."
@@ -60,6 +62,7 @@ if [ -n "$OPERATION_TOKEN" ] && verified_cdp_endpoint "$PORT" 2>/dev/null; then
 fi
 
 progress() {
+  [ "$QUIET" = "true" ] && return 0
   printf '%s\n' "$*" >&2
   notify_user "$*"
 }
@@ -105,9 +108,15 @@ if [ "$APPLY_NOW" != "true" ]; then
 fi
 
 # Hot path: CDP already open → seconds, not tens of seconds
-if hot_reapply_theme "$PORT" 8000 "$OPERATION_TOKEN"; then
+if hot_reapply_theme "$PORT" 8000 "$OPERATION_TOKEN" "$QUIET"; then
   progress "Done: ${THEME_NAME}"
   exit 0
+fi
+
+# Automatic conversation routing is best-effort and never restarts the app or
+# opens alerts. The watcher will retry on the next stable route observation.
+if [ "$QUIET" = "true" ]; then
+  exit 1
 fi
 
 # Cold path only when debug port is missing

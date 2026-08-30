@@ -17,6 +17,10 @@ const CDP_ID_PATTERN = /^[A-Za-z0-9._-]{1,200}$/;
 const MAX_ART_BYTES = 16 * 1024 * 1024;
 const OPERATION_UI_HOST_ID = "chatgpt-dream-skin-operation";
 const OPERATION_UI_REGISTRY_KEY = "__CHATGPT_DREAM_SKIN_OPERATION_UI__";
+const SHELL_MAIN_SELECTOR = 'main[data-app-shell-main-surface="default"], main.main-surface';
+const SETTINGS_MAIN_SELECTOR = 'div.zoom-adjusted-viewport:has(> div.app-shell-left-panel) > div.relative.isolate.flex-1';
+const APP_MAIN_SELECTOR = `${SHELL_MAIN_SELECTOR}, ${SETTINGS_MAIN_SELECTOR}`;
+const SIDEBAR_SELECTOR = 'aside.app-shell-left-panel, div.app-shell-left-panel';
 const OPERATION_KINDS = new Set(["apply", "pause", "switch"]);
 const OPERATION_UI_STATES = new Set(["success", "error", "cancelled"]);
 const OPERATION_UI_CSS = `
@@ -203,9 +207,19 @@ function validatedDebuggerUrl(target, port) {
   return url.href;
 }
 
+export function isAuxiliaryAppTargetUrl(rawUrl) {
+  try {
+    const url = new URL(rawUrl);
+    return url.searchParams.get("initialRoute") === "/avatar-overlay";
+  } catch {
+    return true;
+  }
+}
+
 function isValidCdpPageTarget(item, port) {
   if (
     item?.type !== "page" || !item.url?.startsWith("app://")
+    || isAuxiliaryAppTargetUrl(item.url)
     || typeof item.id !== "string" || !CDP_ID_PATTERN.test(item.id)
     || !item.webSocketDebuggerUrl
   ) return false;
@@ -351,8 +365,10 @@ async function listAppTargets(port) {
 async function probeSession(session) {
   return session.evaluate(`(() => {
     const markers = {
-      shell: Boolean(document.querySelector('main.main-surface')),
+      shell: Boolean(document.querySelector(${JSON.stringify(SHELL_MAIN_SELECTOR)})),
       sidebar: Boolean(document.querySelector('aside.app-shell-left-panel')),
+      settingsShell: Boolean(document.querySelector(${JSON.stringify(SETTINGS_MAIN_SELECTOR)})),
+      settingsSidebar: Boolean(document.querySelector('div.app-shell-left-panel')),
       composer: Boolean(document.querySelector('.composer-surface-chrome')),
       main: Boolean(document.querySelector('[role="main"]')),
     };
@@ -360,7 +376,7 @@ async function probeSession(session) {
       title: document.title,
       href: location.href,
       markers,
-      codex: markers.shell && markers.sidebar,
+      codex: (markers.shell && markers.sidebar) || (markers.settingsShell && markers.settingsSidebar),
     };
   })()`);
 }
@@ -656,7 +672,7 @@ function operationUiExpression(action, token, state = "loading", message = "") {
       : value === "success" ? 1800 : value === "cancelled" ? 2400 : 6000;
     const issuedAt = (value) => Number(String(value).split(":")[1]) || 0;
     const positionInMainArea = (host) => {
-      const main = document.querySelector("main.main-surface") ||
+      const main = document.querySelector(${JSON.stringify(APP_MAIN_SELECTOR)}) ||
         document.querySelector('[role="main"]') || document.documentElement;
       const rect = main.getBoundingClientRect();
       const top = Math.max(0, rect.top);
@@ -843,11 +859,20 @@ async function verifySession(session, expectedThemeId = null, expectedRevision =
     const suggestions = home?.querySelector('.group\\\\/home-suggestions') ?? null;
     const cardBoxes = suggestions ? [...suggestions.querySelectorAll('button')].map(box) : [];
     const visibleCards = cardBoxes.filter((item) => item?.visible);
-    const hero = box(home?.firstElementChild?.firstElementChild?.firstElementChild);
+    // The home route gained an optional banners wrapper in newer builds, so
+    // walking three firstElementChild hops can land on an empty node. Anchor
+    // the visual check to the stable title/suggestion signals and keep the
+    // entire role=main frame as the primary layout invariant.
+    const homeTitle = home?.querySelector('.group\\\\/title') ??
+      home?.querySelector('[class*="heading-xl"]') ?? null;
+    const heroAnchor = homeTitle?.closest('[class*="min-h-28"]') ??
+      homeTitle ?? suggestions?.parentElement ?? null;
+    const homeFrame = box(home);
+    const hero = box(heroAnchor);
     const projectButton = box(home?.querySelector('.group\\\\/project-selector > button'));
-    const shell = box(document.querySelector('main.main-surface'));
+    const shell = box(document.querySelector(${JSON.stringify(APP_MAIN_SELECTOR)}));
     const composer = box(document.querySelector('.composer-surface-chrome'));
-    const sidebar = box(document.querySelector('aside.app-shell-left-panel'));
+    const sidebar = box(document.querySelector(${JSON.stringify(SIDEBAR_SELECTOR)}));
     const chrome = document.getElementById('codex-dream-skin-chrome');
     const result = {
       installed: document.documentElement.classList.contains('codex-dream-skin'),
@@ -859,6 +884,7 @@ async function verifySession(session, expectedThemeId = null, expectedRevision =
       chromePointerEvents: getComputedStyle(chrome || document.body).pointerEvents,
       homeRoute: Boolean(homeRoute),
       homePresent: Boolean(home),
+      homeFrame,
       hero,
       cards: cardBoxes,
       visibleCardCount: visibleCards.length,
@@ -881,7 +907,14 @@ async function verifySession(session, expectedThemeId = null, expectedRevision =
       (!expectedRevision || result.revision === expectedRevision);
     // Project selector markup varies across Codex builds — soft requirement.
     const homePass = !result.homeRoute || (
-      result.homePresent && result.hero?.visible && result.hero.width >= 280 && result.hero.height >= 120
+      result.homePresent &&
+      result.homeFrame?.visible &&
+      result.homeFrame.width >= 320 &&
+      result.homeFrame.height >= 240 &&
+      (
+        (result.hero?.visible && result.hero.width >= 240 && result.hero.height >= 32) ||
+        result.visibleCardCount > 0
+      )
     );
     result.pass = Boolean(basePass && homePass && payloadPass);
     result.expectedThemeId = expectedThemeId;
@@ -962,8 +995,10 @@ async function runFinishOperation(options) {
 
 async function runOneShot(options) {
   const connected = await connectCodexTargets(options.port, options.timeoutMs);
+  // Visible progress is opt-in: manual actions pass an operation token, while
+  // automatic conversation routing omits it and must stay non-interactive.
   const operationToken = options.mode === "once" || options.mode === "remove"
-    ? options.operationToken ?? nextOperationToken()
+    ? options.operationToken
     : null;
   if (operationToken) {
     const message = options.mode === "remove" ? "正在暂停皮肤…" : "正在准备皮肤…";
@@ -1095,9 +1130,16 @@ export function earlyPayloadFor(payload, revision) {
     const install = () => {
       if (window[generationKey] !== generation) { stop(); return true; }
       if (!document.documentElement) return false;
-      const shell = document.querySelector('main.main-surface');
+      const href = String(location?.href || "");
+      const auxiliaryRoute = href.includes("initialRoute=%2Favatar-overlay")
+        || href.includes("initialRoute=/avatar-overlay");
+      const compactWindow = document.documentElement.classList?.contains?.("compact-window");
+      if (auxiliaryRoute || compactWindow) { stop(); return true; }
+      const shell = document.querySelector(${JSON.stringify(SHELL_MAIN_SELECTOR)});
       const sidebar = document.querySelector('aside.app-shell-left-panel');
-      if (!shell || !sidebar) return false;
+      const settingsShell = document.querySelector(${JSON.stringify(SETTINGS_MAIN_SELECTOR)});
+      const settingsSidebar = document.querySelector('div.app-shell-left-panel');
+      if (!(shell && sidebar) && !(settingsShell && settingsSidebar)) return false;
       stop();
       ${payload};
       window[appliedKey] = generation;
@@ -1390,12 +1432,14 @@ async function runWatch(options) {
         const operationToken = externalOperation?.token ?? nextOperationToken();
         record.operationToken = operationToken;
         record.operationExternal = Boolean(externalOperation);
-        await presentOperationUi(
-          record.session,
-          operationToken,
-          externalOperation ? "loading" : "error",
-          externalOperation ? "正在准备主题…" : "主题读取失败，当前皮肤未改变",
-        );
+        if (externalOperation) {
+          await presentOperationUi(
+            record.session,
+            operationToken,
+            "loading",
+            "正在准备主题…",
+          );
+        }
       }));
       throw error;
     }
@@ -1413,9 +1457,11 @@ async function runWatch(options) {
       record.operationToken = operationToken;
       record.operationExternal = Boolean(externalOperation);
       try {
-        await presentOperationUi(
-          session, operationToken, "loading", `正在应用「${current.theme.name}」…`,
-        );
+        if (externalOperation) {
+          await presentOperationUi(
+            session, operationToken, "loading", `正在应用「${current.theme.name}」…`,
+          );
+        }
         if (controlOnly || mutationEpoch !== refreshEpoch) continue;
         const nextIdentifier = await registerEarlyForRecord(
           record, current.payload, current.revision,
@@ -1438,14 +1484,8 @@ async function runWatch(options) {
           current.revision,
         );
         if (!verification?.pass) throw new Error("Theme refresh verification failed");
-        if (!externalOperation) {
-          await presentOperationUi(session, operationToken, "success", `已应用「${current.theme.name}」`);
-        }
       } catch (error) {
         record.needsLoadFallback = true;
-        if (!externalOperation) {
-          await presentOperationUi(session, operationToken, "error", "主题切换失败，未确认应用");
-        }
         console.error(`[dream-skin] theme refresh failed: ${error.message}`);
       }
     }

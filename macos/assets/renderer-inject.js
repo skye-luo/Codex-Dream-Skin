@@ -4,10 +4,11 @@
   const STYLE_ID = "codex-dream-skin-style";
   const CHROME_ID = "codex-dream-skin-chrome";
   const SHELL_ATTR = "data-dream-shell";
+  const SHELL_MAIN_SELECTOR = 'main[data-app-shell-main-surface="default"], main.main-surface';
   const ART_ATTRS = [
     "data-dream-art-wide", "data-dream-art-safe", "data-dream-task-mode",
     "data-dream-art-safe-area", "data-dream-art-task-mode", "data-dream-art-aspect",
-    "data-dream-art-ready",
+    "data-dream-art-ready", "data-dream-theme-transition", "data-dream-surface",
   ];
   const VERSION = __DREAM_SKIN_VERSION_JSON__;
   const STYLE_REVISION = __DREAM_SKIN_STYLE_REVISION_JSON__;
@@ -29,6 +30,7 @@
     "--dream-skin-project-label",
   ];
   const installToken = {};
+  const themeId = THEME.id || "custom";
   const existingAnalysisCache = window[ANALYSIS_CACHE_KEY];
   const analysisCache = existingAnalysisCache && typeof existingAnalysisCache.get === "function" &&
     typeof existingAnalysisCache.set === "function" ? existingAnalysisCache : new Map();
@@ -54,7 +56,52 @@
   };
   window[DISABLED_KEY] = false;
 
+  const selectShellMain = () => document.querySelector(SHELL_MAIN_SELECTOR) ||
+    [...document.querySelectorAll("main")].find((candidate) => !candidate.closest("[inert]")) ||
+    null;
+
   const previous = window[STATE_KEY];
+  const bodyBackgroundBaseline = previous?.bodyBackgroundBaseline || {
+    value: document.body?.style?.getPropertyValue?.("background-color") || "",
+    priority: document.body?.style?.getPropertyPriority?.("background-color") || "",
+  };
+  const applyOwnedBodyBackground = () => {
+    if (!document.body?.style?.setProperty) return;
+    const value = document.documentElement?.style?.getPropertyValue?.("--ds-bg") || "#0d0e10";
+    if (document.body.style.getPropertyValue("background-color") !== value ||
+        document.body.style.getPropertyPriority("background-color") !== "important") {
+      document.body.style.setProperty("background-color", value, "important");
+      metrics.styleWrites += 1;
+    }
+  };
+  const restoreBodyBackground = () => {
+    if (!document.body?.style?.setProperty) return;
+    if (bodyBackgroundBaseline.value) {
+      document.body.style.setProperty(
+        "background-color",
+        bodyBackgroundBaseline.value,
+        bodyBackgroundBaseline.priority,
+      );
+    } else {
+      document.body.style.removeProperty("background-color");
+    }
+  };
+  const isAuxiliarySurface = () => {
+    const href = String(location?.href || "");
+    return href.includes("initialRoute=%2Favatar-overlay")
+      || href.includes("initialRoute=/avatar-overlay")
+      || document.documentElement?.classList?.contains?.("compact-window");
+  };
+  const isNativeSystemSurface = () => [...document.querySelectorAll("input")].some((input) => {
+    const placeholder = String(input.getAttribute("placeholder") || "").normalize("NFKC").toLowerCase();
+    return placeholder.includes("搜索设置") || placeholder.includes("search settings");
+  });
+  if (isAuxiliarySurface()) {
+    previous?.cleanup?.();
+    window[DISABLED_KEY] = true;
+    return { installed: false, skipped: "auxiliary-surface" };
+  }
+  const themeChanging = Boolean(previous?.themeId && previous.themeId !== themeId);
   const artUrl = (() => {
     const comma = artDataUrl.indexOf(",");
     const mime = /^data:([^;,]+)/.exec(artDataUrl)?.[1] || "image/png";
@@ -73,6 +120,7 @@
     cancelAnimationFrame(previous.scheduler.frame);
   }
   if (previous?.analysisTimer) clearTimeout(previous.analysisTimer);
+  if (previous?.transitionTimer) clearTimeout(previous.transitionTimer);
   if (previous?.resizeHandler) window.removeEventListener("resize", previous.resizeHandler);
   if (previous?.mediaHandler && previous?.mediaQuery) {
     try { previous.mediaQuery.removeEventListener("change", previous.mediaHandler); } catch {}
@@ -235,7 +283,7 @@
     if (!root.classList.contains("codex-dream-skin")) {
       const samples = [
         body,
-        document.querySelector("main.main-surface"),
+        selectShellMain(),
         document.querySelector("aside.app-shell-left-panel"),
       ].filter(Boolean);
       let votesLight = 0;
@@ -547,13 +595,31 @@
   const applyRootState = (root) => {
     metrics.rootPasses += 1;
     ensureStyle(root);
+    setAttribute(root, "data-dream-surface", "workspace");
     const shell = resolvedShell();
     setAttribute(root, SHELL_ATTR, shell);
     setStyleProperty(root, "--dream-skin-art", `url("${artUrl}")`);
     applyTheme(root, shell);
+    applyOwnedBodyBackground();
     applyArtMetadata(root);
     root.classList.add("codex-dream-skin");
     return shell;
+  };
+
+  const suspendForNativeSystemSurface = (root) => {
+    root.classList.remove("codex-dream-skin");
+    root.removeAttribute(SHELL_ATTR);
+    restoreBodyBackground();
+    setAttribute(root, "data-dream-surface", "native");
+    document.getElementById(CHROME_ID)?.remove();
+    chromeParts = null;
+    document.querySelectorAll(".dream-skin-home").forEach((node) => node.classList.remove("dream-skin-home"));
+    document.querySelectorAll(".dream-skin-home-shell").forEach((node) => node.classList.remove("dream-skin-home-shell"));
+    document.querySelectorAll(".dream-skin-home-utility").forEach((node) => node.classList.remove("dream-skin-home-utility"));
+    document.querySelectorAll('[data-dream-skin-composer-surface="true"]').forEach((node) => {
+      node.classList.remove("composer-surface-chrome");
+      delete node.dataset.dreamSkinComposerSurface;
+    });
   };
 
   const syncRouteState = (shell, { layout = false } = {}) => {
@@ -561,7 +627,7 @@
     const root = document.documentElement;
     if (!root) return;
     shell ||= root.getAttribute(SHELL_ATTR) || resolvedShell();
-    const shellMain = document.querySelector("main.main-surface") || document.querySelector("main");
+    const shellMain = selectShellMain();
     const homeIndicator = document.querySelector('[data-testid="home-icon"]');
     const home = homeIndicator?.closest('[role="main"]') ||
       [...document.querySelectorAll('[role="main"]')].find((candidate) =>
@@ -572,12 +638,33 @@
     }
     if (home) home.classList.add("dream-skin-home");
     const homeUtilityBars = new Set(home
-      ? home.querySelectorAll('[class*="_homeUtilityBar_"]')
+      ? home.querySelectorAll([
+          '[data-composer-home-utility-bar-position][data-composer-placement="home"]',
+          '[class*="_homeUtilityBar_"]',
+          '[class*="ComposerHomeUtilityBar"]',
+        ].join(","))
       : []);
     for (const candidate of document.querySelectorAll(".dream-skin-home-utility")) {
       if (!homeUtilityBars.has(candidate)) candidate.classList.remove("dream-skin-home-utility");
     }
     for (const candidate of homeUtilityBars) candidate.classList.add("dream-skin-home-utility");
+
+    /* Codex 26.803 replaced the legacy composer class with stable data
+       attributes and a generated CSS-module class. Re-attach our semantic
+       class to the actual painted surface so the existing paired surface and
+       foreground contract survives app updates without matching hash names. */
+    const composerSurfaces = new Set(document.querySelectorAll(
+      '[data-codex-composer-root] [data-composer-surface-variant]',
+    ));
+    for (const candidate of document.querySelectorAll('[data-dream-skin-composer-surface="true"]')) {
+      if (composerSurfaces.has(candidate)) continue;
+      candidate.classList.remove("composer-surface-chrome");
+      delete candidate.dataset.dreamSkinComposerSurface;
+    }
+    for (const candidate of composerSurfaces) {
+      candidate.classList.add("composer-surface-chrome");
+      candidate.dataset.dreamSkinComposerSurface = "true";
+    }
 
     if (!shellMain || !document.body) return;
     if (observedShellMain !== shellMain) {
@@ -637,9 +724,15 @@
 
   const ensure = ({ root: rootPass = true, route = true, layout = true } = {}) => {
     if (window[DISABLED_KEY]) return;
+    if (isAuxiliarySurface()) { cleanup(); return; }
     const root = document.documentElement;
     if (!root) return;
     metrics.ensureCalls += 1;
+    if (isNativeSystemSurface()) {
+      suspendForNativeSystemSurface(root);
+      return;
+    }
+    if (root.getAttribute("data-dream-surface") === "native") rootPass = true;
     const shell = rootPass ? applyRootState(root) : null;
     if (route) syncRouteState(shell, { layout });
   };
@@ -653,15 +746,21 @@
     for (const name of ART_ATTRS) document.documentElement?.removeAttribute(name);
     document.documentElement?.style.removeProperty("--dream-skin-art");
     for (const name of THEME_VARIABLES) document.documentElement?.style.removeProperty(name);
+    restoreBodyBackground();
     document.querySelectorAll(".dream-skin-home").forEach((node) => node.classList.remove("dream-skin-home"));
     document.querySelectorAll(".dream-skin-home-shell").forEach((node) => node.classList.remove("dream-skin-home-shell"));
     document.querySelectorAll(".dream-skin-home-utility").forEach((node) => node.classList.remove("dream-skin-home-utility"));
+    document.querySelectorAll('[data-dream-skin-composer-surface="true"]').forEach((node) => {
+      node.classList.remove("composer-surface-chrome");
+      delete node.dataset.dreamSkinComposerSurface;
+    });
     document.getElementById(STYLE_ID)?.remove();
     document.getElementById(CHROME_ID)?.remove();
     state?.observer?.disconnect();
     state?.rootObserver?.disconnect();
     state?.resizeObserver?.disconnect();
     if (state?.timer) clearInterval(state.timer);
+    if (state?.transitionTimer) clearTimeout(state.transitionTimer);
     if (state?.scheduler?.timeout) clearTimeout(state.scheduler.timeout);
     if (state?.scheduler?.frame != null && typeof cancelAnimationFrame === "function") {
       cancelAnimationFrame(state.scheduler.frame);
@@ -705,6 +804,12 @@
   const observer = new MutationObserver(() => scheduleEnsure({ route: true }));
   rootObserver = new MutationObserver(() => {
     if (samplingNativeShell) return;
+    // Codex updates root classes for transient UI state as work streams in.
+    // Only recompute the full theme when those mutations actually change the
+    // resolved light/dark shell; otherwise the observer can form a hot loop
+    // with the skin's own root/body maintenance.
+    const currentShell = document.documentElement?.getAttribute(SHELL_ATTR);
+    if (currentShell && resolvedShell() === currentShell) return;
     scheduleEnsure({ root: true, route: true });
   });
   const resizeHandler = () => scheduleEnsure({ route: true, layout: true });
@@ -726,6 +831,7 @@
     rootObserver,
     resizeObserver,
     timer: null,
+    transitionTimer: null,
     scheduler,
     resizeHandler,
     mediaQuery,
@@ -734,15 +840,34 @@
     installToken,
     analysis: artAnalysis,
     artMetadata: ART_METADATA,
+    bodyBackgroundBaseline,
     metrics,
     version: VERSION,
-    themeId: THEME.id || "custom",
+    themeId,
     revision: PAYLOAD_REVISION,
     detectShellMode,
   };
+  let transitionTimer = null;
+  const reducedMotion = (() => {
+    try { return window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch { return false; }
+  })();
+  if (themeChanging && !reducedMotion) {
+    document.documentElement?.setAttribute("data-dream-theme-transition", "true");
+  } else {
+    document.documentElement?.removeAttribute("data-dream-theme-transition");
+  }
   const firstEnsureStartedAt = now();
   ensure({ layout: !previous || !document.getElementById(CHROME_ID) });
   metrics.firstEnsureMs = Number((now() - firstEnsureStartedAt).toFixed(3));
+  if (themeChanging && !reducedMotion) {
+    transitionTimer = setTimeout(() => {
+      const state = window[STATE_KEY];
+      if (state?.installToken !== installToken) return;
+      document.documentElement?.removeAttribute("data-dream-theme-transition");
+      state.transitionTimer = null;
+    }, 320);
+    window[STATE_KEY].transitionTimer = transitionTimer;
+  }
   if (previous?.artUrl && previous.artUrl !== artUrl) URL.revokeObjectURL(previous.artUrl);
 
   observer.observe(document.documentElement, {
@@ -751,12 +876,16 @@
   });
   rootObserver.observe(document.documentElement, {
     attributes: true,
-    attributeFilter: ["class", "data-theme", "data-appearance", "data-color-mode", "style"],
+    // The skin owns several inline root variables. Observing `style` feeds
+    // those writes back into applyRootState and can pin the renderer CPU.
+    // Native appearance changes are already covered by class/data attributes
+    // and the prefers-color-scheme listener below.
+    attributeFilter: ["class", "data-theme", "data-appearance", "data-color-mode"],
   });
   if (document.body) {
     rootObserver.observe(document.body, {
       attributes: true,
-      attributeFilter: ["class", "data-theme", "data-appearance", "data-color-mode", "style"],
+      attributeFilter: ["class", "data-theme", "data-appearance", "data-color-mode"],
     });
   }
   const timer = setInterval(() => ensure(), 4000);
@@ -781,7 +910,7 @@
   return {
     installed: true,
     version: VERSION,
-    themeId: THEME.id || "custom",
+    themeId,
     revision: PAYLOAD_REVISION,
     shell: resolvedShell(),
     analysis: artAnalysis,

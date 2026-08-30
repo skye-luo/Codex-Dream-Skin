@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "id": "mentor-demis-ai",
+  "name": "Demis · AI 探索局",
+  "brandSubtitle": "AI EXPLORATION · DEMIS HASSABIS",
+  "tagline": "玩 AI，追问未知，把困难问题变成可验证的探索。",
+  "projectPrefix": "进入探索 · ",
+  "projectLabel": "◉  选择 AI 探索任务",
+  "statusText": "EXPLORATION MODE",
+  "quote": "Solve intelligence. Then use it to solve everything else.",
+  "image": "background.png",
+  "appearance": "dark",
+  "art": {
+    "safeArea": "left",
+    "taskMode": "ambient",
+    "focusX": 0.78,
+    "focusY": 0.48
+  },
+  "colors": {
+    "background": "#080d15",
+    "panel": "#0d1420",
+    "panelAlt": "#121c2a",
+    "accent": "#5f8fd9",
+    "accentAlt": "#5f8fd9",
+    "secondary": "#5f8fd9",
+    "highlight": "#5f8fd9",
+    "text": "#eef3f9",
+    "muted": "#9aa9bb",
+    "line": "rgba(95, 143, 217, .25)"
+  }
+}

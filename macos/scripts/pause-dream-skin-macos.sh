@@ -96,6 +96,7 @@ write_operation_state pausing "正在暂停皮肤" "$OPERATION_TOKEN" \
   || fail "Could not publish the pause operation state."
 discover_codex_app
 require_signed_node_runtime
+remove_autostart_agent
 
 if [ "$PORT_EXPLICIT" = "false" ] && [ -f "$STATE_PATH" ]; then
   saved_port="$(state_field port 2>/dev/null || true)"
@@ -115,6 +116,7 @@ if [ "$DEBUG_READY" = "true" ]; then
 fi
 
 verify_macos_app_signature quick
+stop_conversation_router
 
 REMOVED="false"
 KEEP_CONTROL_WATCHER="false"

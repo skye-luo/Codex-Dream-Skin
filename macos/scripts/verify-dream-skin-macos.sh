@@ -22,8 +22,19 @@ if [ "$PORT_EXPLICIT" = "false" ] && [ -f "$STATE_PATH" ]; then
   PORT="$(state_field port)"
 fi
 verified_cdp_endpoint "$PORT" || fail "Port $PORT is not a verified Codex loopback CDP endpoint."
+conversation_router_is_running "$PORT" \
+  || fail "Conversation theme router is not running on port $PORT."
 
 ARGS=("$INJECTOR" --verify --port "$PORT" --theme-dir "$THEME_DIR" --timeout-ms 30000)
 [ -n "$SCREENSHOT" ] && ARGS+=(--screenshot "$SCREENSHOT")
 [ "$RELOAD" = "true" ] && ARGS+=(--reload)
-exec "$NODE" "${ARGS[@]}"
+"$NODE" "${ARGS[@]}"
+
+LIVE_OUTPUT="$STATE_ROOT/verification-live"
+"$NODE" "$PROJECT_ROOT/tests/live-contrast-audit.mjs" \
+  --out "$LIVE_OUTPUT" \
+  --scenarios baseline \
+  --preserve-current-state \
+  --fail-on-contrast \
+  --fail-on-skip
+printf 'Live compatibility report: %s\n' "$LIVE_OUTPUT/report.json"

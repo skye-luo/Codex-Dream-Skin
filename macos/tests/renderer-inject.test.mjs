@@ -11,13 +11,215 @@ const css = await fs.readFile(path.join(macosRoot, "assets", "dream-skin.css"), 
 
 assert.doesNotMatch(
   css,
-  /main\.main-surface\s*>\s*header\.app-header-tint\s*\{[^}]*\b(?:position|z-index)\s*:/,
+  /main:is\(\.main-surface, \[data-app-shell-main-surface="default"\]\)\s*>\s*header\.app-header-tint\s*\{[^}]*\b(?:position|z-index)\s*:/,
   "The skin must preserve Codex's native fixed header so the side-panel toggle remains reachable.",
 );
 assert.doesNotMatch(
   css,
-  /main\.main-surface:not\(\.dream-skin-home-shell\)\s*>\s*\*\s*\{[^}]*\bposition\s*:/,
+  /main:is\(\.main-surface, \[data-app-shell-main-surface="default"\]\):not\(\.dream-skin-home-shell\)\s*>\s*\*\s*\{[^}]*\bposition\s*:/,
   "Task-route child layering must not overwrite the native header position.",
+);
+assert.doesNotMatch(
+  css,
+  /\.dream-skin-home\s*>\s*div:first-child/,
+  "Home layout must not assume the first child is content because newer builds prepend a home-banners wrapper.",
+);
+assert.match(
+  css,
+  /\.dream-skin-home\s*>\s*div:has\(\.group\\\/home-suggestions\)\s*\{[\s\S]{0,120}min-height:\s*100% !important;/,
+  "Home layout must anchor to the stable suggestion-bearing content container across old and new DOM structures.",
+);
+assert.match(
+  css,
+  /html\.codex-dream-skin\s+:is\([\s\S]{0,500}text-token-conversation-summary[\s\S]{0,220}color:\s*rgb\(var\(--ds-text-rgb\) \/ \.80\) !important;[\s\S]{0,80}opacity:\s*1 !important;/,
+  "Secondary task and portal text must use an explicit readable color without stacked native opacity.",
+);
+assert.match(
+  css,
+  /data-app-action-sidebar-thread-active="true"\]\s*\*[\s\S]{0,120}color:\s*var\(--ds-text\) !important;[\s\S]{0,80}opacity:\s*1 !important;/,
+  "The selected sidebar task must remain readable after a mentor theme switch.",
+);
+assert.match(
+  css,
+  /--thread-resource-card-row-padding-x[\s\S]{0,500}bg-token-bg-primary[\s\S]{0,500}bg-token-input-background[\s\S]{0,500}bg-token-bg-fog[\s\S]{0,500}bg-token-editor-background[\s\S]{0,500}background-color:\s*rgb\(var\(--ds-panel-2-rgb\) \/ \.94\) !important;/,
+  "Progress pills, portal approvals, menus, file cards, and turn diffs must not retain a translucent light native surface.",
+);
+assert.match(
+  css,
+  /html\.codex-dream-skin\s+\[data-codex-approval-surface\][\s\S]{0,240}background:\s*rgb\(var\(--ds-panel-2-rgb\) \/ \.98\) !important;[\s\S]{0,240}box-shadow:\s*0 18px 50px/,
+  "Short-window file-edit approvals must be themed by their stable document-level surface marker.",
+);
+assert.match(
+  css,
+  /main:is\(\.main-surface, \[data-app-shell-main-surface="default"\]\)\s+aside[\s\S]{0,100}\[style\*="background-color: var\(--color-background-panel"\][\s\S]{0,180}background-color:\s*rgb\(var\(--ds-panel-2-rgb\) \/ \.98\) !important;[\s\S]{0,120}color:\s*var\(--ds-text\) !important;/,
+  "Scheduled-task setting cards must not retain native white panels under themed light foregrounds.",
+);
+assert.match(
+  css,
+  /main:is\(\.main-surface, \[data-app-shell-main-surface="default"\]\)[\s\S]{0,100}aside:has\(file-tree-container\)\s*\{[\s\S]{0,220}color-scheme:\s*light !important;[\s\S]{0,220}background:\s*var\(--color-token-main-surface-primary\) !important;/,
+  "The file editor workspace must retain its native paired light surface and syntax foregrounds.",
+);
+assert.match(
+  css,
+  /aside:has\(file-tree-container\)\s+:is\([\s\S]{0,260}\.cm-editor,[\s\S]{0,180}file-tree-container[\s\S]{0,180}background-color:\s*var\(--color-token-main-surface-primary\) !important;/,
+  "Markdown, source diffs, and the file tree must share one readable light workspace surface.",
+);
+assert.match(
+  css,
+  /aside:has\(file-tree-container\)\s+:is\([\s\S]{0,220}text-token-button-tertiary-foreground[\s\S]{0,180}color:\s*var\(--color-token-foreground\) !important;/,
+  "Editor toolbar buttons must restore native dark foregrounds on the light workspace.",
+);
+assert.match(
+  css,
+  /aside:has\(file-tree-container\)\s+::selection\s*\{[\s\S]{0,160}background:\s*#99c5f6 !important;[\s\S]{0,120}-webkit-text-fill-color:\s*#101820 !important;/,
+  "Selected editor text must remain readable after the workspace surface is restored.",
+);
+assert.match(
+  css,
+  /\[data-tab-id\]:has\(> \[role="tab"\]\[aria-selected="true"\]\)[\s\S]{0,180}> \[role="tab"\]\[aria-selected="true"\][\s\S]{0,360}\[data-app-shell-tab-close-button="true"\][\s\S]{0,180}color:\s*var\(--color-token-foreground\) !important;[\s\S]{0,100}-webkit-text-fill-color:\s*currentColor !important;/,
+  "Selected spreadsheet and artifact tabs must pair their native light pill with dark filename and close-button ink.",
+);
+assert.match(
+  css,
+  /:is\(\.app-shell-main-content-top-fade, \[class\*="_MainContentTopFade_"\]\)\s*\{[\s\S]{0,120}display:\s*none !important;[\s\S]{0,100}background:\s*transparent !important;/,
+  "Both legacy and current main-content fade nodes must not paint a white strip over dark mentor art.",
+);
+assert.match(
+  css,
+  /html\.codex-dream-skin\s+\[class\*="!text-token-input-placeholder-foreground"\][\s\S]{0,180}-webkit-text-fill-color:\s*rgb\(var\(--ds-text-rgb\) \/ \.78\) !important;/,
+  "The important placeholder utility must override its final glyph fill without cascading through semantic diff descendants.",
+);
+assert.match(
+  css,
+  /data-radix-menu-content[\s\S]{0,120}\[role="menuitem"\]\[class\*="!text-token-foreground"\][\s\S]{0,180}-webkit-text-fill-color:\s*var\(--ds-text\) !important;/,
+  "Important foreground utilities inside nested account menus must not paint dark ink on dark themed portals.",
+);
+assert.match(
+  css,
+  /\[role="tooltip"\]\s*\{[\s\S]{0,180}background:\s*rgb\(var\(--ds-panel-2-rgb\) \/ \.98\) !important;[\s\S]{0,180}-webkit-text-fill-color:\s*var\(--ds-text\) !important;/,
+  "Attention and ordinary tooltips must share one paired, readable theme surface.",
+);
+assert.match(
+  css,
+  /\[role="tooltip"\]\[class\*="!bg-token-text-link-foreground"\][\s\S]{0,180}--color-token-text-link-foreground:\s*#075a9e;[\s\S]{0,120}background:\s*#075a9e !important;[\s\S]{0,180}-webkit-text-fill-color:\s*#fff !important;/,
+  "The important blue activity callout must use an AA-safe blue with white ink.",
+);
+assert.match(
+  css,
+  /data-radix-menu-content[\s\S]{0,120}text-token-editor-warning-foreground[\s\S]{0,160}-webkit-text-fill-color:\s*#f59a63 !important;/,
+  "Full-access warnings must retain semantic orange at AA contrast on dark menus.",
+);
+assert.match(
+  css,
+  /button\[aria-label\^="切换模式"\][\s\S]{0,220}color:\s*rgb\(var\(--ds-text-rgb\) \/ \.92\) !important;/,
+  "The Codex mode label must remain readable even when a mentor accent is too dark for body-sized text.",
+);
+assert.match(
+  css,
+  /button\[class~="bg-token-foreground"\][\s\S]{0,180}background:\s*color-mix\(in srgb, var\(--ds-accent\) 58%, var\(--ds-text\) 42%\) !important;/,
+  "Primary action fills must be light enough for their dark on-accent label across all mentor palettes.",
+);
+assert.match(
+  css,
+  /text-token-git-decoration-deleted-resource-foreground[\s\S]{0,160}-webkit-text-fill-color:\s*#ff7b72 !important;/,
+  "Deletion counters must retain semantic red at AA contrast on dark mentor cards.",
+);
+assert.match(
+  css,
+  /\[role="menu"\]\s+\[class\*="_ViewToggleContent_"\][\s\S]{0,160}-webkit-text-fill-color:\s*var\(--ds-text\) !important;/,
+  "Generated model-menu effort labels must not keep native dark ink on the dark portal.",
+);
+assert.match(
+  css,
+  /loading-shimmer-pure-text[\s\S]{0,180}cadencedShimmerSweep[\s\S]{0,180}-webkit-text-fill-color:\s*rgb\(var\(--ds-text-rgb\) \/ \.58\) !important;[\s\S]{0,260}cadencedShimmerHighlight[\s\S]{0,180}-webkit-text-fill-color:\s*rgb\(var\(--ds-text-rgb\) \/ \.88\) !important;/,
+  "Both phases of running activity shimmer text must remain readable on the immersive task background.",
+);
+assert.match(
+  css,
+  /group\/activity-header[\s\S]{0,180}span:not\(\.loading-shimmer-pure-text\):not\(\[class\*="cadencedShimmer"\]\)[\s\S]{0,180}-webkit-text-fill-color:\s*rgb\(var\(--ds-text-rgb\) \/ \.76\) !important;/,
+  "Completed activity summaries must override the generated light-shell descendant ink.",
+);
+assert.match(
+  css,
+  /data-markdown-text-style="assistant-message"[\s\S]{0,420}:is\([\s\S]{0,220}\bp, li,[\s\S]{0,260}-webkit-text-fill-color:\s*var\(--ds-text\) !important;/,
+  "Generated assistant Markdown blocks must not retain native light-shell ink on dark mentor art.",
+);
+assert.match(
+  css,
+  /data-user-message-bubble="true"[\s\S]{0,420}:is\([\s\S]{0,220}\bp, li,[\s\S]{0,260}-webkit-text-fill-color:\s*var\(--ds-text\) !important;/,
+  "Generated user Markdown blocks must not retain native dark ink on dark mentor art.",
+);
+assert.match(
+  template,
+  /data-codex-composer-root[\s\S]{0,120}data-composer-surface-variant[\s\S]{0,520}composer-surface-chrome[\s\S]{0,240}dreamSkinComposerSurface/,
+  "The current stable composer surface must receive the semantic skin class instead of relying on a CSS-module hash.",
+);
+assert.match(
+  template,
+  /initialRoute=[\s\S]{0,100}avatar-overlay[\s\S]{0,180}compact-window[\s\S]{0,700}skipped:\s*"auxiliary-surface"/,
+  "The renderer must refuse to theme the compact Codex Pet overlay.",
+);
+assert.match(
+  template,
+  /isNativeSystemSurface[\s\S]{0,260}搜索设置[\s\S]{0,80}search settings/,
+  "Settings must be detected as a native system surface and excluded from the mentor skin.",
+);
+assert.match(
+  template,
+  /if \(isNativeSystemSurface\(\)\)[\s\S]{0,160}suspendForNativeSystemSurface\(root\)/,
+  "Every route pass must suspend the skin when the native settings surface is visible.",
+);
+assert.match(
+  template,
+  /suspendForNativeSystemSurface[\s\S]{0,420}classList\.remove\("codex-dream-skin"\)[\s\S]{0,260}data-dream-surface[\s\S]{0,80}"native"/,
+  "Settings suspension must remove the skin class while retaining the observer needed to restore task pages.",
+);
+assert.match(
+  template,
+  /getAttribute\("data-dream-surface"\) === "native"\) rootPass = true;/,
+  "Returning from Settings must force a complete root re-application.",
+);
+assert.match(
+  css,
+  /data-dream-surface="native"[\s\S]{0,180}\.text-tertiary[\s\S]{0,260}color:\s*#5f6368 !important;[\s\S]{0,160}opacity:\s*1 !important;/,
+  "Native light settings pages must keep their own surfaces while faint utility labels remain readable.",
+);
+const injectorSource = await fs.readFile(path.join(macosRoot, "scripts", "injector.mjs"), "utf8");
+assert.ok(
+  template.includes(`const SHELL_MAIN_SELECTOR = 'main[data-app-shell-main-surface="default"], main.main-surface';`) &&
+    template.includes("const selectShellMain = () => document.querySelector(SHELL_MAIN_SELECTOR)"),
+  "The renderer must support both the current stable main-surface attribute and the legacy class name.",
+);
+assert.match(
+  injectorSource,
+  /SHELL_MAIN_SELECTOR\s*=\s*'main\[data-app-shell-main-surface="default"\], main\.main-surface'/,
+  "CDP discovery and verification must recognize the current Codex main-surface contract.",
+);
+assert.match(
+  injectorSource,
+  /const operationToken = options\.mode === "once" \|\| options\.mode === "remove"[\s\S]{0,100}\? options\.operationToken[\s\S]{0,40}: null;/,
+  "Silent automatic theme routing must not invent an operation token or show a progress popup.",
+);
+assert.ok(
+  injectorSource.includes("const homeTitle = home?.querySelector(") &&
+    injectorSource.includes("const homeFrame = box(home);") &&
+    injectorSource.includes("const hero = box(heroAnchor);"),
+  "Restart verification must locate the home hero from stable title/card signals instead of brittle first-child depth.",
+);
+assert.match(
+  injectorSource,
+  /result\.homeFrame\?\.visible[\s\S]{0,360}result\.visibleCardCount > 0/,
+  "Restart verification must accept a correctly sized home frame with either a title hero or visible suggestion cards.",
+);
+assert.match(
+  css,
+  /data-dream-theme-transition="true"[\s\S]{0,900}dream-skin-theme-reveal/,
+  "Mentor changes should use the short non-interactive reveal transition.",
+);
+assert.match(
+  css,
+  /prefers-reduced-motion:\s*reduce[\s\S]{0,600}data-dream-theme-transition="true"/,
+  "The mentor transition must be disabled when reduced motion is requested.",
 );
 
 assert.doesNotMatch(
@@ -52,17 +254,17 @@ assert.match(
 );
 assert.match(
   css,
-  /data-dream-art-wide="true"\]:has\(main\.main-surface\.dream-skin-home-shell\)[\s\S]{0,100}body\s*\{[\s\S]{0,300}background-image:\s*var\(--dream-skin-art\) !important;/,
+  /data-dream-art-wide="true"\]:has\(main:is\(\.main-surface, \[data-app-shell-main-surface="default"\]\)\.dream-skin-home-shell\)[\s\S]{0,100}body\s*\{[\s\S]{0,300}background-image:\s*var\(--dream-skin-art\) !important;/,
   "Wide home artwork should use the same full-window image as utility routes.",
 );
 assert.match(
   css,
-  /data-dream-art-wide="true"\]:has\(main\.main-surface\.dream-skin-home-shell\)[\s\S]{0,120}body\s*\{[\s\S]{0,260}background-position:\s*var\(--ds-art-position\) !important;/,
+  /data-dream-art-wide="true"\]:has\(main:is\(\.main-surface, \[data-app-shell-main-surface="default"\]\)\.dream-skin-home-shell\)[\s\S]{0,120}body\s*\{[\s\S]{0,260}background-position:\s*var\(--ds-art-position\) !important;/,
   "Wide home artwork must honor the configured focal point instead of forcing a centered crop.",
 );
 assert.match(
   css,
-  /data-dream-art-task-mode="ambient"[\s\S]{0,260}data-dream-art-wide="true"\]:has\(main\.main-surface:not\(\.dream-skin-home-shell\)\)[\s\S]{0,120}body\s*\{[\s\S]{0,260}background-position:\s*var\(--ds-art-position\) !important;/,
+  /data-dream-art-task-mode="ambient"[\s\S]{0,260}data-dream-art-wide="true"\]:has\(main:is\(\.main-surface, \[data-app-shell-main-surface="default"\]\):not\(\.dream-skin-home-shell\)\)[\s\S]{0,120}body\s*\{[\s\S]{0,260}background-position:\s*var\(--ds-art-position\) !important;/,
   "Wide task artwork must retain the same focal point as the home route.",
 );
 assert.match(
@@ -82,8 +284,73 @@ assert.match(
 );
 assert.match(
   template,
-  /\[class\*="_homeUtilityBar_"\][\s\S]{0,500}dream-skin-home-utility/,
-  "The renderer should give the current native home utility bar a stable theme class.",
+  /data-composer-home-utility-bar-position[\s\S]{0,260}data-composer-placement="home"[\s\S]{0,500}dream-skin-home-utility/,
+  "The renderer should recognize the stable native home utility-bar attributes.",
+);
+assert.match(
+  css,
+  /data-composer-surface-variant\][\s\S]{0,260}> \[data-composer-layout\][\s\S]{0,220}background:\s*transparent !important;/,
+  "The native light composer body must not cover the themed new-chat surface.",
+);
+assert.match(
+  css,
+  /data-composer-home-utility-bar-position[\s\S]{0,220}data-composer-placement="home"[\s\S]{0,420}background:\s*var\(--ds-immersive-composer-solid\) !important;/,
+  "The new-chat utility bar must use the same readable immersive surface as the composer.",
+);
+assert.match(
+  css,
+  /aside\.app-shell-left-panel button\.bg-token-charts-blue[\s\S]{0,180}background:\s*#0b5f9f !important;[\s\S]{0,120}-webkit-text-fill-color:\s*#fff !important;/,
+  "The compact sidebar update badge must use a dark enough blue for white text.",
+);
+assert.match(
+  css,
+  /data-testid="app-shell-header-context-menu-surface"[\s\S]{0,260}bg-primary-soft-alpha[\s\S]{0,180}color:\s*#1a1c1f !important;/,
+  "The 26.810 light titlebar action buttons must retain dark readable ink.",
+);
+assert.match(
+  css,
+  /data-above-composer-portal="true"[\s\S]{0,220}bg-background-primary-soft[\s\S]{0,420}background:\s*rgb\(var\(--ds-panel-2-rgb\) \/ \.98\) !important;/,
+  "The stable above-composer change summary must use a paired dark surface.",
+);
+assert.match(
+  css,
+  /data-above-composer-portal="true"[\s\S]{0,180}\.text-codex-git-added[\s\S]{0,120}#4ade80 !important;/,
+  "The 26.810 added counter must remain semantic and readable on the themed summary pill.",
+);
+assert.match(
+  css,
+  /data-radix-menu-content\]\[class\*="bg-surface-elevated-secondary"\][\s\S]{0,220}--color-codex-description:\s*#5f6368;[\s\S]{0,500}\.text-warning[\s\S]{0,120}#a33600 !important;/,
+  "The 26.810 native light menus must use AA-safe secondary and warning colors.",
+);
+assert.match(
+  css,
+  /data-browser-sidebar-webview-host-root[\s\S]{0,180}@container\/diff-header[\s\S]{0,180}#3f4348 !important;[\s\S]{0,500}text-codex-git-added[\s\S]{0,100}#087a2f !important;[\s\S]{0,400}text-codex-git-deleted[\s\S]{0,100}#b42318 !important;/,
+  "The native-light review pane header must not inherit dark-theme diff colors.",
+);
+assert.match(
+  css,
+  /data-thread-find-target="conversation"\] \.text-tertiary[\s\S]{0,140}-webkit-text-fill-color:\s*rgb\(var\(--ds-text-rgb\) \/ \.76\) !important;/,
+  "The 26.810 message timestamp must not inherit native light-shell tertiary ink.",
+);
+assert.match(
+  css,
+  /data-codex-composer-root\][\s\S]{0,120}bg-background-primary-soft\/70[\s\S]{0,140}-webkit-text-fill-color:\s*#3f4348 !important;/,
+  "Attachment actions on the native light composer row must retain dark readable ink.",
+);
+assert.match(
+  css,
+  /aside\.app-shell-left-panel\s*\{[\s\S]{0,420}--color-text:\s*var\(--ds-text\);[\s\S]{0,260}--color-codex-description:/,
+  "The 26.810 sidebar semantic text palette must be rebound at its stable boundary.",
+);
+assert.match(
+  css,
+  /--thread-resource-card-row-padding-x[\s\S]{0,500}--color-surface-elevated-secondary:[\s\S]{0,500}\.text-codex-description[\s\S]{0,180}-webkit-text-fill-color:/,
+  "The 26.810 resource card must pair its semantic foreground and surface palette.",
+);
+assert.match(
+  css,
+  /text-token-git-decoration-deleted-resource-foreground[\s\S]{0,120}\.text-codex-git-deleted[\s\S]{0,180}#ff7b72 !important;/,
+  "Both legacy and 26.810 deletion counters must retain AA-safe semantic red.",
 );
 assert.match(
   css,
@@ -112,8 +379,8 @@ assert.match(
 );
 assert.match(
   css,
-  /\.thread-scroll-container \.bg-gradient-to-t\.from-token-main-surface-primary\s*\{[\s\S]{0,100}background:\s*transparent !important;/,
-  "Wide artwork should remove the native opaque fade behind the sticky composer.",
+  /\.thread-scroll-container \.bg-gradient-to-t:is\(\.from-token-main-surface-primary, \.from-surface\)\s*\{[\s\S]{0,100}background:\s*transparent !important;/,
+  "Wide artwork should remove both legacy and 26.810 native fades behind the sticky composer.",
 );
 assert.match(
   css,
@@ -233,7 +500,7 @@ function createFixture(theme, {
     createElement,
     getElementById(id) { return nodes.get(id) ?? null; },
     querySelector(selector) {
-      if (selector === "main.main-surface" || selector === "main") return shellMain;
+      if (selector === 'main[data-app-shell-main-surface="default"], main.main-surface') return shellMain;
       return null;
     },
     querySelectorAll() { return []; },
@@ -263,12 +530,14 @@ function createFixture(theme, {
   const context = {
     window,
     document,
+    location: { href: "app://-/index.html" },
     MutationObserver: class {
       constructor(callback) {
         this.callback = callback;
+        this.observations = [];
         observers.push(this);
       }
-      observe() {}
+      observe(target, options) { this.observations.push({ target, options }); }
       disconnect() {}
     },
     ResizeObserver: class {
@@ -360,6 +629,18 @@ const defaultMetrics = defaults.window.__CODEX_DREAM_SKIN_STATE__.metrics;
 assert.equal(defaultMetrics.rootPasses, 1);
 assert.equal(defaultMetrics.routePasses, 1);
 assert.equal(defaultMetrics.layoutReads, 1);
+assert.ok(
+  defaults.observers[1].observations.every(({ options }) =>
+    !options.attributeFilter?.includes("style")),
+  "Root observers must not feed skin-owned inline style writes back into applyRootState.",
+);
+defaults.observers[1].callback([{ type: "attributes", attributeName: "class", target: defaults.root }]);
+defaults.flushTimers(64);
+assert.equal(
+  defaultMetrics.rootPasses,
+  1,
+  "Transient root mutations must not recompute an unchanged shell.",
+);
 for (let index = 0; index < 50; index += 1) defaults.observers[0].callback([]);
 assert.equal(defaults.timers.size, 1, "Mutation bursts should coalesce into one scheduled ensure.");
 defaults.flushTimers(64);

@@ -53,18 +53,22 @@ fi
 
 "$NODE" "$ROOT/scripts/injector.mjs" --check-payload >/dev/null
 "$NODE" "$ROOT/tests/image-metadata.test.mjs"
+"$NODE" "$ROOT/tests/conversation-theme-router.test.mjs"
 "$NODE" "$ROOT/tests/injector-bootstrap.test.mjs"
 "$NODE" "$ROOT/tests/renderer-inject.test.mjs"
 "$NODE" "$ROOT/tests/theme-stage.test.mjs"
 
-# Every bundled preset must be a valid, injectable theme pack with a preset-* id.
-for preset in "$ROOT"/presets/preset-*/; do
+# Every bundled preset and mentor skin must be a valid injectable theme pack,
+# with an id matching its directory name.
+for preset in "$ROOT"/presets/preset-*/ "$ROOT"/presets/mentor-*/; do
   [ -d "$preset" ] || continue
+  EXPECTED_THEME_ID="$(/usr/bin/basename "$preset")"
   PRESET_CHECK="$("$NODE" "$ROOT/scripts/injector.mjs" --check-payload --theme-dir "$preset")"
   "$NODE" -e '
-    const v = JSON.parse(process.argv[1]);
-    if (!v.pass || !String(v.themeId).startsWith("preset-") || v.imageBytes < 1) process.exit(1);
-  ' "$PRESET_CHECK"
+    const [payload, expectedId] = process.argv.slice(1);
+    const v = JSON.parse(payload);
+    if (!v.pass || v.themeId !== expectedId || v.imageBytes < 1) process.exit(1);
+  ' "$PRESET_CHECK" "$EXPECTED_THEME_ID"
 done
 
 TMP="$(/usr/bin/mktemp -d /tmp/codex-dream-skin-tests.XXXXXX)"
@@ -806,6 +810,28 @@ CRLF_BACKUP="$TMP/config-crlf-backup.json"
 /usr/bin/cmp -s "$CRLF_CONFIG" "$TMP/original-crlf.toml"
 
 /usr/bin/env -u HOME /bin/bash -c '. "$1/scripts/common-macos.sh"; [ -n "$HOME" ] && [ "$SKIN_VERSION" = "1.2.0" ]' _ "$ROOT"
+
+# The conversation router always uses the silent hot-reapply path. macOS Bash
+# 3.2 treats an expanded empty array as unbound under `set -u`, so exercise the
+# complete function with process/runtime helpers stubbed before shipping it.
+/bin/bash -c '
+  . "$1/scripts/common-macos.sh"
+  NODE=/usr/bin/true
+  INJECTOR=/tmp/dream-skin-test-injector.mjs
+  THEME_DIR=/tmp/dream-skin-test-theme
+  ensure_node_runtime() { return 0; }
+  verified_cdp_endpoint() { return 0; }
+  state_field() {
+    [ "$1" = injectorProtocol ] && printf "3\n" || printf "full\n"
+  }
+  stop_recorded_injector() { return 0; }
+  launch_injector_daemon() { printf "%s\n" "$$"; }
+  process_started_at() { printf "test-start\n"; }
+  codex_main_pids() { printf "%s\n" "$$"; }
+  write_state() { return 0; }
+  mark_state_active() { return 0; }
+  hot_reapply_theme 9341 25 "" true
+' _ "$ROOT"
 "$ROOT/scripts/doctor-macos.sh" >/dev/null
 
 printf 'PASS: syntax, payload, bundled presets, preset seeding, runtime-state safety, custom-theme, config round-trips, HOME recovery, signature, and doctor checks.\n'

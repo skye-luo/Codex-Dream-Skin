@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "id": "mentor-lisa-life",
+  "name": "苏姿丰 · 生活引领局",
+  "brandSubtitle": "LIFE & COURAGE · LISA SU",
+  "tagline": "照顾好生活的底盘，带着判断、勇气和自我尊重长期成长。",
+  "projectPrefix": "回到生活 · ",
+  "projectLabel": "◉  选择生活与成长话题",
+  "statusText": "LIFE MODE",
+  "quote": "Run toward the hardest problems.",
+  "image": "background.png",
+  "appearance": "dark",
+  "art": {
+    "safeArea": "left",
+    "taskMode": "ambient",
+    "focusX": 0.78,
+    "focusY": 0.48
+  },
+  "colors": {
+    "background": "#110d0f",
+    "panel": "#1a1417",
+    "panelAlt": "#241a1e",
+    "accent": "#a35a6a",
+    "accentAlt": "#a35a6a",
+    "secondary": "#a35a6a",
+    "highlight": "#a35a6a",
+    "text": "#f4eeee",
+    "muted": "#b1a1a5",
+    "line": "rgba(163, 90, 106, .25)"
+  }
+}

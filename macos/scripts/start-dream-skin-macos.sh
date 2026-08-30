@@ -33,12 +33,16 @@ PORT_EXPLICIT="false"
 RESTART_EXISTING="false"
 PROMPT_RESTART="false"
 FOREGROUND_INJECTOR="false"
+SILENT="false"
+FROM_AUTOSTART="false"
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --port) PORT="${2:-}"; PORT_EXPLICIT="true"; shift 2 ;;
     --restart-existing) RESTART_EXISTING="true"; shift ;;
     --prompt-restart) PROMPT_RESTART="true"; shift ;;
     --foreground-injector) FOREGROUND_INJECTOR="true"; shift ;;
+    --silent) SILENT="true"; shift ;;
+    --from-autostart) FROM_AUTOSTART="true"; shift ;;
     *) fail "Unknown start argument: $1" ;;
   esac
 done
@@ -46,7 +50,7 @@ case "$PORT" in ''|*[!0-9]*) fail "Invalid port: $PORT" ;; esac
 [ "$PORT" -ge 1024 ] && [ "$PORT" -le 65535 ] || fail "Port must be between 1024 and 65535."
 
 ensure_state_root
-if [ "$FOREGROUND_INJECTOR" != "true" ]; then
+if [ "$FOREGROUND_INJECTOR" != "true" ] && [ "$SILENT" != "true" ]; then
   OPERATION_TOKEN="$(new_operation_token)"
   write_operation_state applying "正在应用皮肤" "$OPERATION_TOKEN" \
     || fail "Could not publish the apply operation state."
@@ -165,8 +169,57 @@ if [ "$verify_code" -ne 0 ]; then
 fi
 cleanup_verify_output
 
+# Structural injection success is not enough: an app update can keep every
+# hook alive while changing semantic colors underneath the skin. Audit the
+# actual visible renderer on every start. If it fails, remove the skin and
+# leave Codex readable with its native appearance instead of retrying forever.
+COMPATIBILITY_RUN_ID="$(/bin/date -u '+%Y%m%dT%H%M%SZ')"
+COMPATIBILITY_ROOT="$STATE_ROOT/compatibility/${CODEX_VERSION:-unknown}-$COMPATIBILITY_RUN_ID"
+/bin/mkdir -p "$STATE_ROOT/compatibility"
+/bin/chmod 700 "$STATE_ROOT/compatibility"
+COMPATIBILITY_PASSED="false"
+: >"$COMPATIBILITY_ROOT.log"
+for compatibility_attempt in 1 2 3; do
+  printf 'attempt=%s\n' "$compatibility_attempt" >>"$COMPATIBILITY_ROOT.log"
+  if "$NODE" "$PROJECT_ROOT/tests/live-contrast-audit.mjs" \
+    --out "$COMPATIBILITY_ROOT" \
+    --scenarios baseline \
+    --preserve-current-state \
+    --fail-on-contrast \
+    --fail-on-skip \
+    >>"$COMPATIBILITY_ROOT.log" 2>&1; then
+    COMPATIBILITY_PASSED="true"
+    break
+  fi
+  /bin/sleep 1
+done
+if [ "$COMPATIBILITY_PASSED" != "true" ]; then
+  stop_conversation_router
+  if ! stop_recorded_injector; then
+    fail "Live compatibility validation failed and the injector could not be stopped safely. See $COMPATIBILITY_ROOT/report.json"
+  fi
+  "$NODE" "$INJECTOR" --remove --port "$PORT" --theme-dir "$THEME_DIR" --timeout-ms 12000 \
+    >/dev/null 2>&1 || true
+  mark_state_incompatible "${CODEX_VERSION:-unknown}" "$COMPATIBILITY_ROOT/report.json" || true
+  fail "Codex ${CODEX_VERSION:-unknown} failed the live skin compatibility gate. The skin was removed; see $COMPATIBILITY_ROOT/report.json"
+fi
+
 mark_state_active || fail "Could not commit the verified active skin state."
-write_operation_state success "皮肤已应用" "$OPERATION_TOKEN" \
-  || fail "Could not publish the completed apply state."
+mark_state_compatible "$COMPATIBILITY_ROOT/report.json" \
+  || fail "Could not record the live compatibility result."
+# launchctl jobs created inside command substitution can be scoped to the
+# short-lived substitution process. Launch in this shell and read the PID
+# through the shared variable so the router remains alive after start exits.
+launch_conversation_router "$PORT" >/dev/null
+ROUTER_PID="$CONVERSATION_ROUTER_PID"
+/bin/kill -0 "$ROUTER_PID" 2>/dev/null \
+  || fail "The conversation theme router exited during startup. See $ROUTER_ERROR_LOG"
+if [ -n "$OPERATION_TOKEN" ]; then
+  write_operation_state success "皮肤已应用" "$OPERATION_TOKEN" \
+    || fail "Could not publish the completed apply state."
+fi
+if [ "$FOREGROUND_INJECTOR" != "true" ] && [ "$FROM_AUTOSTART" != "true" ]; then
+  "$SCRIPT_DIR/install-autostart-macos.sh" --port "$PORT" >/dev/null
+fi
 OPERATION_FINISHED="true"
-printf 'ChatGPT Dream Skin %s is active on loopback port %s.\n' "$SKIN_VERSION" "$PORT"
+printf 'ChatGPT Dream Skin %s is active on loopback port %s with conversation routing.\n' "$SKIN_VERSION" "$PORT"
