@@ -126,8 +126,8 @@ assert.match(
 );
 assert.match(
   css,
-  /\[role="menu"\]\s+\[class\*="_ViewToggleContent_"\][\s\S]{0,160}-webkit-text-fill-color:\s*var\(--ds-text\) !important;/,
-  "Generated model-menu effort labels must not keep native dark ink on the dark portal.",
+  /\[role="menu"\]:not\(\[class\*="bg-surface-elevated-secondary"\]\)\s+\[class\*="_ViewToggleContent_"\][\s\S]{0,160}-webkit-text-fill-color:\s*var\(--ds-text\) !important;/,
+  "Legacy dark model menus need skin ink; native elevated menus must retain their semantic label colors.",
 );
 assert.match(
   css,
@@ -354,8 +354,13 @@ assert.match(
 );
 assert.match(
   css,
-  /\.dream-skin-home:has\(\.dream-skin-home-utility\)[\s\S]{0,120}\.composer-surface-chrome\s*\{[\s\S]{0,180}border-radius:\s*0 0 22px 22px !important;/,
-  "The home utility bar and composer should render as one continuous control.",
+  /\.dream-skin-home:has\(\.dream-skin-home-utility\)[\s\S]{0,120}\.composer-surface-chrome\s*\{[\s\S]{0,180}border-radius:\s*22px !important;/,
+  "The new-chat composer must retain all four rounded corners below the utility bar.",
+);
+assert.match(
+  css,
+  /\.group\\\/home-suggestions button > span:first-child > span:first-child\s*\{[\s\S]{0,180}place-items:\s*center !important;[\s\S]{0,100}justify-content:\s*center !important;[\s\S]{0,100}align-items:\s*center !important;/,
+  "Suggestion icons must remain centered when Codex adds a native justify-start utility.",
 );
 assert.match(
   css,

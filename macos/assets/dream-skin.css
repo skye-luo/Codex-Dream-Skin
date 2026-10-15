@@ -1433,7 +1433,9 @@ html.codex-dream-skin:is([data-dream-art-safe="center"], [data-dream-art-safe-ar
   width: 38px;
   height: 38px;
   display: grid !important;
-  place-items: center;
+  place-items: center !important;
+  justify-content: center !important;
+  align-items: center !important;
   margin: 0 auto;
   border: 1px solid rgb(var(--ds-accent-rgb) / .24);
   border-radius: 50%;
@@ -1598,7 +1600,7 @@ html.codex-dream-skin .dream-skin-home-utility {
 html.codex-dream-skin .dream-skin-home:has(.dream-skin-home-utility)
   .composer-surface-chrome {
   border: 0 !important;
-  border-radius: 0 0 22px 22px !important;
+  border-radius: 22px !important;
   box-shadow:
     0 10px 28px rgb(var(--ds-bg-rgb) / .24),
     inset 1px 0 rgb(var(--ds-muted-rgb) / .18),
@@ -1833,10 +1835,11 @@ html.codex-dream-skin[data-dream-shell="light"]
   -webkit-text-fill-color: #9b1c1c !important;
 }
 
-/* The model picker now renders its selected effort label through a generated
-   view-toggle component rather than a foreground token. Scope the repair to a
-   menu portal so ordinary native light controls keep their own ink. */
-html.codex-dream-skin [role="menu"] [class*="_ViewToggleContent_"] {
+/* Legacy dark model menus need the skin's foreground on the view toggle.
+   New elevated menus keep native surfaces and semantic label colors: forcing
+   text-fill there would paint white glyphs over the native gray/blue ink. */
+html.codex-dream-skin [role="menu"]:not([class*="bg-surface-elevated-secondary"])
+  [class*="_ViewToggleContent_"] {
   color: var(--ds-text) !important;
   -webkit-text-fill-color: var(--ds-text) !important;
   opacity: 1 !important;
